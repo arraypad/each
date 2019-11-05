@@ -5,9 +5,12 @@ authors = ["Arpad Ray <arraypad@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+atty = "0.2.13"
 clap = "2.33.0"
 env_logger = "0.7.1"
+exitcode = "1.1.2"
 failure = "0.1.6"
+handlebars = "2.0.2"
 log = "0.4.0"
 serde = "1.0.102"
 serde_json = "1.0.41"
