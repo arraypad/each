@@ -132,7 +132,7 @@ fn run(args: clap::App, parsers: HashMap<&'static str, Box<dyn Parser>>) -> Resu
 		readers.push((None, Box::new(std::io::stdin())));
 	}
 
-	for (ext, mut reader) in (&mut readers).iter() {
+	for (ref ext, ref mut reader) in readers.iter_mut() {
 		let parser = match arg_matches.value_of("format") {
 			Some(format) => match parsers.get(format) {
 				Some(parser) => parser,
@@ -148,7 +148,7 @@ fn run(args: clap::App, parsers: HashMap<&'static str, Box<dyn Parser>>) -> Resu
 			},
 		};
 
-		process(&mut reader, parser)?;
+		process(reader, parser)?;
 	}
 
 	Ok(())
