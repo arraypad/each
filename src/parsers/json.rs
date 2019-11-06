@@ -3,6 +3,8 @@ use std::io::Read;
 
 use crate::Parser;
 
+pub const ID: &'static str = "json";
+
 pub struct Json {}
 
 const JSON_EXTS: [&'static str; 1] = ["json"];
@@ -12,8 +14,8 @@ impl Parser for Json {
 		&JSON_EXTS
 	}
 
-	fn is_valid_header(&self) -> Result<bool, Error> {
-		Ok(true)
+	fn is_valid_header(&self, header: &[u8]) -> Result<bool, Error> {
+		Ok(header[0] as char == '[')
 	}
 
 	fn parse(
