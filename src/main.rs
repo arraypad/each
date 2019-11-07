@@ -1,5 +1,6 @@
 extern crate atty;
 extern crate clap;
+extern crate dialoguer;
 extern crate exitcode;
 extern crate failure;
 extern crate handlebars;
@@ -11,6 +12,7 @@ mod parsers;
 mod readers;
 
 use clap::{AppSettings, Arg};
+use dialoguer::Confirmation;
 use failure::{Error, Fail};
 use handlebars::Handlebars;
 use log::info;
@@ -51,10 +53,11 @@ impl From<std::io::Error> for EachError {
 struct Action {
 	command: String,
 	args: Vec<String>,
+	prompt: bool,
 }
 
 impl Action {
-	pub fn run(&self, value: &serde_json::Value) -> Result<(), Error> {
+	pub fn prepare(&self, value: &serde_json::Value) -> Result<Exec, Error> {
 		let reg = Handlebars::new();
 
 		let mut cmd = Exec::cmd(&self.command);
@@ -62,8 +65,11 @@ impl Action {
 			cmd = cmd.arg(reg.render_template(arg, value)?);
 		}
 
-		cmd.join()?;
+		Ok(cmd)
+	}
 
+	pub fn run(&self, cmd: Exec) -> Result<(), Error> {
+		cmd.join()?;
 		Ok(())
 	}
 }
@@ -95,6 +101,12 @@ fn main() {
 				.value_name("FILE")
 				.help("Input file format")
 				.takes_value(true),
+		)
+		.arg(
+			Arg::with_name("prompt")
+				.short("p")
+				.long("interactive")
+				.help("Prompt for each value"),
 		)
 		.arg(Arg::with_name("command").multiple(true));
 
@@ -190,6 +202,7 @@ fn run(args: clap::App, parsers: HashMap<&'static str, Box<dyn Parser>>) -> Resu
 			Some(Action {
 				command: command,
 				args: commands.map(|c| c.to_string()).collect(),
+				prompt: arg_matches.is_present("prompt"),
 			})
 		}
 		None => None,
@@ -238,10 +251,26 @@ fn process(
 	match action {
 		Some(ref action) => {
 			for ref value in values {
-				if let Err(e) = action.run(value) {
-					return Err(EachError::Data {
-						message: format!("failed to run command: {:?}", e),
-					});
+				match action.prepare(value) {
+					Ok(cmd) => {
+						let run = if action.prompt {
+							let cmd_str = cmd.to_cmdline_lossy();
+							Confirmation::new().with_text(&cmd_str).interact()?
+						} else {
+							true
+						};
+
+						if run {
+							if let Err(e) = action.run(cmd) {
+								return Err(EachError::Data {
+									message: format!("failed to run command: {:?}", e),
+								});
+							}
+						}
+					},
+					Err(e) => return Err(EachError::Data {
+						message: format!("failed to prepare command: {:?}", e),
+					}),
 				}
 			}
 		}
