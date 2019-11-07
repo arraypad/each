@@ -5,6 +5,7 @@ extern crate exitcode;
 extern crate failure;
 extern crate handlebars;
 extern crate log;
+extern crate rayon;
 extern crate serde_json;
 extern crate subprocess;
 
@@ -17,9 +18,9 @@ use failure::{Error, Fail};
 use handlebars::Handlebars;
 use log::info;
 use parsers::json::{Json as JsonParser, ID as JsonId};
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::io::prelude::*;
-use std::iter::Iterator;
 use std::path::Path;
 use subprocess::Exec;
 
@@ -31,7 +32,7 @@ trait Parser {
 	fn parse(
 		&self,
 		input: &mut dyn Read,
-	) -> Result<Box<dyn Iterator<Item = serde_json::Value>>, Error>;
+	) -> Result<Vec<serde_json::Value>, Error>;
 }
 
 #[derive(Debug, Fail)]
@@ -108,6 +109,14 @@ fn main() {
 				.long("interactive")
 				.help("Prompt for each value"),
 		)
+		.arg(
+			Arg::with_name("max-procs")
+				.short("P")
+				.long("max-procs")
+				.value_name("max-procs")
+				.help("Run up to max-procs processes at a time")
+				.takes_value(true),
+		)
 		.arg(Arg::with_name("command").multiple(true));
 
 	std::process::exit(match run(args, parsers) {
@@ -157,6 +166,22 @@ fn guess_parser<'a>(
 fn run(args: clap::App, parsers: HashMap<&'static str, Box<dyn Parser>>) -> Result<(), EachError> {
 	let arg_matches = args.get_matches();
 	info!("arguments: {:?}", arg_matches);
+
+	let max_procs = if let Some(max_procs_str) = arg_matches.value_of("max-procs") {
+		match max_procs_str.parse::<usize>() {
+			Ok(max_procs) => max_procs,
+			Err(e) => return Err(EachError::Usage {
+				message: format!("Invalid max-proces: {} ({})", &max_procs_str, e),
+			}),
+		}
+	} else {
+		1
+	};
+
+	rayon::ThreadPoolBuilder::new()
+		.num_threads(max_procs)
+		.build_global()
+		.expect("build_global already called");
 
 	let mut readers: Vec<(Option<String>, CachedReader)> = Vec::new();
 
@@ -229,7 +254,7 @@ fn run(args: clap::App, parsers: HashMap<&'static str, Box<dyn Parser>>) -> Resu
 		};
 
 		process(reader, parser, &action)?;
-	}
+}
 
 	Ok(())
 }
@@ -250,7 +275,7 @@ fn process(
 
 	match action {
 		Some(ref action) => {
-			for ref value in values {
+			let results: Result<Vec<()>, EachError> = values.par_iter().map(|ref value| -> Result<(), EachError> {
 				match action.prepare(value) {
 					Ok(cmd) => {
 						let run = if action.prompt {
@@ -267,22 +292,28 @@ fn process(
 								});
 							}
 						}
+
+						Ok(())
 					},
 					Err(e) => return Err(EachError::Data {
 						message: format!("failed to prepare command: {:?}", e),
 					}),
 				}
+			}).collect();
+
+			match results {
+				Ok(_) => Ok(()),
+				Err(e) => Err(e),
 			}
-		}
+		},
 		None => {
-			let values: Vec<serde_json::Value> = values.collect();
 			if let Err(e) = serde_json::to_writer_pretty(std::io::stdout(), &values) {
 				return Err(EachError::Data {
 					message: format!("serialize error: {:?}", e),
 				});
 			}
+
+			Ok(())
 		}
 	}
-
-	Ok(())
 }

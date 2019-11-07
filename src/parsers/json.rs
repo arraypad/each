@@ -21,12 +21,11 @@ impl Parser for Json {
 	fn parse(
 		&self,
 		input: &mut dyn Read,
-	) -> Result<Box<dyn Iterator<Item = serde_json::Value>>, Error> {
+	) -> Result<Vec<serde_json::Value>, Error> {
 		// read to string first - see https://github.com/serde-rs/json/issues/160
 		let mut buffer = String::new();
 		input.read_to_string(&mut buffer)?;
 
-		let values: Vec<serde_json::Value> = serde_json::from_str(&buffer)?;
-		Ok(Box::new(values.into_iter()))
+		Ok(serde_json::from_str(&buffer)?)
 	}
 }
