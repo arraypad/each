@@ -60,7 +60,7 @@ impl Read for CachedReader {
 
 				self.index += len;
 				Ok(len)
-			},
+			}
 			Err(e) => Err(e),
 		}
 	}

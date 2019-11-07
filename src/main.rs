@@ -2,22 +2,26 @@ extern crate atty;
 extern crate clap;
 extern crate exitcode;
 extern crate failure;
+extern crate handlebars;
 extern crate log;
 extern crate serde_json;
+extern crate subprocess;
 
 mod parsers;
 mod readers;
 
-use clap::Arg;
+use clap::{AppSettings, Arg};
 use failure::{Error, Fail};
+use handlebars::Handlebars;
 use log::info;
-use parsers::json::{ID as JsonId, Json as JsonParser};
+use parsers::json::{Json as JsonParser, ID as JsonId};
 use std::collections::HashMap;
 use std::io::prelude::*;
 use std::iter::Iterator;
 use std::path::Path;
+use subprocess::Exec;
 
-use readers::{CACHE_LEN, CachedReader, FileReader};
+use readers::{CachedReader, FileReader, CACHE_LEN};
 
 trait Parser {
 	fn get_extensions(&self) -> &'static [&'static str];
@@ -44,6 +48,26 @@ impl From<std::io::Error> for EachError {
 	}
 }
 
+struct Action {
+	command: String,
+	args: Vec<String>,
+}
+
+impl Action {
+	pub fn run(&self, value: &serde_json::Value) -> Result<(), Error> {
+		let reg = Handlebars::new();
+
+		let mut cmd = Exec::cmd(&self.command);
+		for arg in &self.args {
+			cmd = cmd.arg(reg.render_template(arg, value)?);
+		}
+
+		cmd.join()?;
+
+		Ok(())
+	}
+}
+
 fn main() {
 	env_logger::init();
 
@@ -54,6 +78,7 @@ fn main() {
 		.version("0.1")
 		.author("Arpad Ray <arraypad@gmail.com>")
 		.about("Build and execute command lines from structured input")
+		.setting(AppSettings::TrailingVarArg)
 		.arg(
 			Arg::with_name("input")
 				.short("i")
@@ -70,7 +95,8 @@ fn main() {
 				.value_name("FILE")
 				.help("Input file format")
 				.takes_value(true),
-		);
+		)
+		.arg(Arg::with_name("command").multiple(true));
 
 	std::process::exit(match run(args, parsers) {
 		Ok(_) => exitcode::OK,
@@ -113,7 +139,6 @@ fn guess_parser<'a>(
 		}
 	}
 
-
 	None
 }
 
@@ -134,9 +159,11 @@ fn run(args: clap::App, parsers: HashMap<&'static str, Box<dyn Parser>>) -> Resu
 
 			let reader = match FileReader::new(&input_path) {
 				Ok(reader) => Box::new(reader),
-				Err(e) => return Err(EachError::Data {
-					message: format!("Couldn't open file {}: {}", &input_path, e),
-				}),
+				Err(e) => {
+					return Err(EachError::Data {
+						message: format!("Couldn't open file {}: {}", &input_path, e),
+					})
+				}
 			};
 
 			let cached = CachedReader::new(reader);
@@ -153,42 +180,80 @@ fn run(args: clap::App, parsers: HashMap<&'static str, Box<dyn Parser>>) -> Resu
 		readers.push((None, cached));
 	}
 
+	let action: Option<Action> = match arg_matches.values_of("command") {
+		Some(ref mut commands) => {
+			let command = match commands.next() {
+				Some(command) => command.to_string(),
+				None => unreachable!(),
+			};
+
+			Some(Action {
+				command: command,
+				args: commands.map(|c| c.to_string()).collect(),
+			})
+		}
+		None => None,
+	};
+
 	for (ref ext, ref mut reader) in readers.iter_mut() {
 		let parser = match arg_matches.value_of("format") {
 			Some(format) => match parsers.get(format) {
 				Some(parser) => parser,
-				None => return Err(EachError::Usage {
-					message: format!("Unknown format: {}", &format),
-				}),
+				None => {
+					return Err(EachError::Usage {
+						message: format!("Unknown format: {}", &format),
+					})
+				}
 			},
 			None => match guess_parser(ext, reader, &parsers) {
 				Some(parser) => parser,
-				None => return Err(EachError::Data {
-					message: format!("Unable to guess format for input"),
-				}),
+				None => {
+					return Err(EachError::Data {
+						message: format!("Unable to guess format for input"),
+					})
+				}
 			},
 		};
 
-		process(reader, parser)?;
+		process(reader, parser, &action)?;
 	}
 
 	Ok(())
 }
 
-fn process(input: &mut dyn Read, parser: &Box<dyn Parser>) -> Result<(), EachError> {
-	let records = match parser.parse(input) {
-		Ok(records) => records,
+fn process(
+	input: &mut dyn Read,
+	parser: &Box<dyn Parser>,
+	action: &Option<Action>,
+) -> Result<(), EachError> {
+	let values = match parser.parse(input) {
+		Ok(values) => values,
 		Err(e) => {
 			return Err(EachError::Data {
-				message: format!("Parse error: {}", e),
+				message: format!("failed to parse input: {}", e),
 			})
 		}
 	};
 
-	for record in records {
-		println!("Record: {:?}", record);
+	match action {
+		Some(ref action) => {
+			for ref value in values {
+				if let Err(e) = action.run(value) {
+					return Err(EachError::Data {
+						message: format!("failed to run command: {:?}", e),
+					});
+				}
+			}
+		}
+		None => {
+			let values: Vec<serde_json::Value> = values.collect();
+			if let Err(e) = serde_json::to_writer_pretty(std::io::stdout(), &values) {
+				return Err(EachError::Data {
+					message: format!("serialize error: {:?}", e),
+				});
+			}
+		}
 	}
 
 	Ok(())
 }
-

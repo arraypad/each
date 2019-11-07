@@ -26,7 +26,7 @@ impl Parser for Json {
 		let mut buffer = String::new();
 		input.read_to_string(&mut buffer)?;
 
-		let records: Vec<serde_json::Value> = serde_json::from_str(&buffer)?;
-		Ok(Box::new(records.into_iter()))
+		let values: Vec<serde_json::Value> = serde_json::from_str(&buffer)?;
+		Ok(Box::new(values.into_iter()))
 	}
 }
