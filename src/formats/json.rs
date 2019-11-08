@@ -1,7 +1,7 @@
 use failure::Error;
 use std::io::Read;
 
-use crate::Parser;
+use crate::Format;
 
 pub const ID: &'static str = "json";
 
@@ -9,7 +9,7 @@ pub struct Json {}
 
 const JSON_EXTS: [&'static str; 1] = ["json"];
 
-impl Parser for Json {
+impl Format for Json {
 	fn get_extensions(&self) -> &'static [&'static str] {
 		&JSON_EXTS
 	}

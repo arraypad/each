@@ -2,7 +2,7 @@ use failure::Error;
 use std::io::Read;
 use std::collections::HashMap;
 
-use crate::Parser;
+use crate::Format;
 
 pub const ID: &'static str = "csv";
 
@@ -10,7 +10,7 @@ pub struct Csv {}
 
 const CSV_EXTS: [&'static str; 1] = ["csv"];
 
-impl Parser for Csv {
+impl Format for Csv {
 	fn get_extensions(&self) -> &'static [&'static str] {
 		&CSV_EXTS
 	}

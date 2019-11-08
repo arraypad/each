@@ -9,7 +9,7 @@ extern crate rayon;
 extern crate serde_json;
 extern crate subprocess;
 
-mod parsers;
+mod formats;
 mod readers;
 
 use clap::{AppSettings, Arg};
@@ -17,8 +17,8 @@ use dialoguer::Confirmation;
 use failure::{Error, Fail};
 use handlebars::Handlebars;
 use log::info;
-use parsers::json::{Json as JsonParser, ID as JsonId};
-use parsers::csv::{Csv as CsvParser, ID as CsvId};
+use formats::json::{Json as JsonFormat, ID as JsonId};
+use formats::csv::{Csv as CsvFormat, ID as CsvId};
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::io::prelude::*;
@@ -27,7 +27,7 @@ use subprocess::Exec;
 
 use readers::{CachedReader, FileReader, CACHE_LEN};
 
-trait Parser {
+trait Format {
 	fn get_extensions(&self) -> &'static [&'static str];
 	fn is_valid_header(&self, header: &[u8]) -> Result<bool, Error>;
 	fn parse(
@@ -79,9 +79,9 @@ impl Action {
 fn main() {
 	env_logger::init();
 
-	let mut parsers: HashMap<&'static str, Box<dyn Parser>> = HashMap::new();
-	parsers.insert(JsonId, Box::new(JsonParser {}));
-	parsers.insert(CsvId, Box::new(CsvParser {}));
+	let mut formats: HashMap<&'static str, Box<dyn Format>> = HashMap::new();
+	formats.insert(JsonId, Box::new(JsonFormat {}));
+	formats.insert(CsvId, Box::new(CsvFormat {}));
 
 	let args = clap::App::new("each")
 		.version("0.1")
@@ -121,7 +121,7 @@ fn main() {
 		)
 		.arg(Arg::with_name("command").multiple(true));
 
-	std::process::exit(match run(args, parsers) {
+	std::process::exit(match run(args, formats) {
 		Ok(_) => exitcode::OK,
 		Err(e) => {
 			eprintln!("Error: {}", e);
@@ -134,16 +134,16 @@ fn main() {
 	})
 }
 
-fn guess_parser<'a>(
+fn guess_format<'a>(
 	ext: &Option<String>,
 	reader: &mut CachedReader,
-	parsers: &'a HashMap<&'static str, Box<dyn Parser>>,
-) -> Option<&'a Box<dyn Parser>> {
+	formats: &'a HashMap<&'static str, Box<dyn Format>>,
+) -> Option<&'a Box<dyn Format>> {
 	if let Some(ref ext) = ext {
-		for (_, parser) in parsers {
-			for pe in parser.get_extensions() {
+		for (_, format) in formats {
+			for pe in format.get_extensions() {
 				if ext == pe {
-					return Some(parser);
+					return Some(format);
 				}
 			}
 		}
@@ -153,10 +153,10 @@ fn guess_parser<'a>(
 	if let Ok(_) = reader.read(&mut header) {
 		reader.rewind();
 
-		for (_, parser) in parsers {
-			if let Ok(is_header) = parser.is_valid_header(&header) {
+		for (_, format) in formats {
+			if let Ok(is_header) = format.is_valid_header(&header) {
 				if is_header {
-					return Some(parser);
+					return Some(format);
 				}
 			}
 		}
@@ -165,7 +165,7 @@ fn guess_parser<'a>(
 	None
 }
 
-fn run(args: clap::App, parsers: HashMap<&'static str, Box<dyn Parser>>) -> Result<(), EachError> {
+fn run(args: clap::App, formats: HashMap<&'static str, Box<dyn Format>>) -> Result<(), EachError> {
 	let arg_matches = args.get_matches();
 	info!("arguments: {:?}", arg_matches);
 
@@ -236,17 +236,17 @@ fn run(args: clap::App, parsers: HashMap<&'static str, Box<dyn Parser>>) -> Resu
 	};
 
 	for (ref ext, ref mut reader) in readers.iter_mut() {
-		let parser = match arg_matches.value_of("format") {
-			Some(format) => match parsers.get(format) {
+		let format= match arg_matches.value_of("format") {
+			Some(format_id) => match formats.get(format_id) {
 				Some(parser) => parser,
 				None => {
 					return Err(EachError::Usage {
-						message: format!("Unknown format: {}", &format),
+						message: format!("Unknown format: {}", &format_id),
 					})
 				}
 			},
-			None => match guess_parser(ext, reader, &parsers) {
-				Some(parser) => parser,
+			None => match guess_format(ext, reader, &formats) {
+				Some(format) => format,
 				None => {
 					return Err(EachError::Data {
 						message: format!("Unable to guess format for input"),
@@ -255,7 +255,7 @@ fn run(args: clap::App, parsers: HashMap<&'static str, Box<dyn Parser>>) -> Resu
 			},
 		};
 
-		process(reader, parser, &action)?;
+		process(reader, format, &action)?;
 }
 
 	Ok(())
@@ -263,7 +263,7 @@ fn run(args: clap::App, parsers: HashMap<&'static str, Box<dyn Parser>>) -> Resu
 
 fn process(
 	input: &mut dyn Read,
-	parser: &Box<dyn Parser>,
+	parser: &Box<dyn Format>,
 	action: &Option<Action>,
 ) -> Result<(), EachError> {
 	let values = match parser.parse(input) {
