@@ -18,6 +18,7 @@ use failure::{Error, Fail};
 use handlebars::Handlebars;
 use log::info;
 use parsers::json::{Json as JsonParser, ID as JsonId};
+use parsers::csv::{Csv as CsvParser, ID as CsvId};
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::io::prelude::*;
@@ -80,6 +81,7 @@ fn main() {
 
 	let mut parsers: HashMap<&'static str, Box<dyn Parser>> = HashMap::new();
 	parsers.insert(JsonId, Box::new(JsonParser {}));
+	parsers.insert(CsvId, Box::new(CsvParser {}));
 
 	let args = clap::App::new("each")
 		.version("0.1")
