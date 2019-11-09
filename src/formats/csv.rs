@@ -1,6 +1,7 @@
 use failure::Error;
-use std::io::Read;
+use indexmap::IndexMap;
 use std::collections::HashMap;
+use std::io::Read;
 
 use crate::Format;
 
@@ -33,5 +34,34 @@ impl Format for Csv {
 		let maps: Result<Vec<HashMap<String, String>>, _> = reader.deserialize().collect();
 		let values: Result<Vec<serde_json::Value>, _> = maps?.iter().map(|h| serde_json::to_value(h)).collect();
 		Ok(values?)
+	}
+
+	fn write(&self, values: Vec<serde_json::Value>) -> Result<(), Error> {
+		let mut writer = csv::Writer::from_writer(std::io::stdout());
+
+		if let Some(obj) = values[0].as_object() {
+			let header: Vec<&String> = obj.keys().collect();
+			writer.serialize(&header)?;
+		}
+
+		for value in values {
+			if value.is_object() {
+				let row: Result<Vec<String>, _> = value.as_object()
+					.unwrap()
+					.values()
+					.map(|v| match v.as_str() {
+						Some(s) => Ok(s.to_owned()),
+						None => serde_json::to_string(v),
+					})
+					.collect();
+				writer.serialize(row?)?;
+			} else {
+				let row_str = serde_json::to_string(&value)?;
+				writer.serialize(&row_str)?;
+			}
+		}
+
+		writer.flush()?;
+		Ok(())
 	}
 }

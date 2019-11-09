@@ -28,4 +28,8 @@ impl Format for Json {
 
 		Ok(serde_json::from_str(&buffer)?)
 	}
+
+	fn write(&self, values: Vec<serde_json::Value>) -> Result<(), Error> {
+		Ok(serde_json::to_writer_pretty(std::io::stdout(), &values)?)
+	}
 }

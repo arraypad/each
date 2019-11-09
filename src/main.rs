@@ -4,6 +4,7 @@ extern crate dialoguer;
 extern crate exitcode;
 extern crate failure;
 extern crate handlebars;
+extern crate indexmap;
 extern crate log;
 extern crate rayon;
 extern crate serde_json;
@@ -34,6 +35,7 @@ trait Format {
 		&self,
 		input: &mut dyn Read,
 	) -> Result<Vec<serde_json::Value>, Error>;
+	fn write(&self, values: Vec<serde_json::Value>) -> Result<(), Error>;
 }
 
 #[derive(Debug, Fail)]
@@ -101,8 +103,16 @@ fn main() {
 			Arg::with_name("format")
 				.short("f")
 				.long("format")
-				.value_name("FILE")
+				.value_name("FORMAT")
 				.help("Input file format")
+				.takes_value(true),
+		)
+		.arg(
+			Arg::with_name("output-format")
+				.short("F")
+				.long("output-format")
+				.value_name("FORMAT")
+				.help("Output file format")
 				.takes_value(true),
 		)
 		.arg(
@@ -235,10 +245,12 @@ fn run(args: clap::App, formats: HashMap<&'static str, Box<dyn Format>>) -> Resu
 		None => None,
 	};
 
+	let mut output_values = Vec::new();
+
 	for (ref ext, ref mut reader) in readers.iter_mut() {
-		let format= match arg_matches.value_of("format") {
+		let format = match arg_matches.value_of("format") {
 			Some(format_id) => match formats.get(format_id) {
-				Some(parser) => parser,
+				Some(format) => format,
 				None => {
 					return Err(EachError::Usage {
 						message: format!("Unknown format: {}", &format_id),
@@ -255,67 +267,76 @@ fn run(args: clap::App, formats: HashMap<&'static str, Box<dyn Format>>) -> Resu
 			},
 		};
 
-		process(reader, format, &action)?;
-}
+		let values = match format.parse(reader) {
+			Ok(values) => values,
+			Err(e) => {
+				return Err(EachError::Data {
+					message: format!("failed to parse input: {}", e),
+				})
+			}
+		};
+
+		match action {
+			Some(ref action) => process(&values, &action)?,
+			None => output_values.extend_from_slice(&values),
+		}
+	}
+
+	if action.is_none() {
+		let format = match arg_matches.value_of("output-format") {
+			Some(format_id) => match formats.get(format_id) {
+				Some(format) => format,
+				None => {
+					return Err(EachError::Usage {
+						message: format!("Unknown output format: {}", &format_id),
+					})
+				}
+			},
+			None => formats.get(JsonId).unwrap(),
+		};
+
+		if let Err(e) = format.write(output_values) {
+			return Err(EachError::Data {
+				message: format!("serialize error: {:?}", e),
+			});
+		}
+	}
 
 	Ok(())
 }
 
 fn process(
-	input: &mut dyn Read,
-	parser: &Box<dyn Format>,
-	action: &Option<Action>,
+	values: &Vec<serde_json::Value>,
+	action: &Action,
 ) -> Result<(), EachError> {
-	let values = match parser.parse(input) {
-		Ok(values) => values,
-		Err(e) => {
-			return Err(EachError::Data {
-				message: format!("failed to parse input: {}", e),
-			})
-		}
-	};
+	let results: Result<Vec<()>, EachError> = values.par_iter().map(|ref value| -> Result<(), EachError> {
+		match action.prepare(value) {
+			Ok(cmd) => {
+				let run = if action.prompt {
+					let cmd_str = cmd.to_cmdline_lossy();
+					Confirmation::new().with_text(&cmd_str).interact()?
+				} else {
+					true
+				};
 
-	match action {
-		Some(ref action) => {
-			let results: Result<Vec<()>, EachError> = values.par_iter().map(|ref value| -> Result<(), EachError> {
-				match action.prepare(value) {
-					Ok(cmd) => {
-						let run = if action.prompt {
-							let cmd_str = cmd.to_cmdline_lossy();
-							Confirmation::new().with_text(&cmd_str).interact()?
-						} else {
-							true
-						};
-
-						if run {
-							if let Err(e) = action.run(cmd) {
-								return Err(EachError::Data {
-									message: format!("failed to run command: {:?}", e),
-								});
-							}
-						}
-
-						Ok(())
-					},
-					Err(e) => return Err(EachError::Data {
-						message: format!("failed to prepare command: {:?}", e),
-					}),
+				if run {
+					if let Err(e) = action.run(cmd) {
+						return Err(EachError::Data {
+							message: format!("failed to run command: {:?}", e),
+						});
+					}
 				}
-			}).collect();
 
-			match results {
-				Ok(_) => Ok(()),
-				Err(e) => Err(e),
-			}
-		},
-		None => {
-			if let Err(e) = serde_json::to_writer_pretty(std::io::stdout(), &values) {
-				return Err(EachError::Data {
-					message: format!("serialize error: {:?}", e),
-				});
-			}
-
-			Ok(())
+				Ok(())
+			},
+			Err(e) => return Err(EachError::Data {
+				message: format!("failed to prepare command: {:?}", e),
+			}),
 		}
+	}).collect();
+
+	match results {
+		Ok(_) => Ok(()),
+		Err(e) => Err(e),
 	}
 }
