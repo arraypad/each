@@ -56,6 +56,7 @@ struct Action {
 	args: Vec<String>,
 	stdin: bool,
 	prompt: bool,
+	prompt_stdin: bool,
 	templates: Handlebars,
 }
 
@@ -65,6 +66,7 @@ impl Action {
 		stdin: Option<String>,
 		args: Vec<String>,
 		prompt: bool,
+		prompt_stdin: bool,
 	) -> Result<Action, Error> {
 		let mut templates = Handlebars::new();
 		let args: Result<Vec<String>, Error> = args
@@ -86,6 +88,7 @@ impl Action {
 			args: args?,
 			stdin: stdin.is_some(),
 			prompt: prompt,
+			prompt_stdin: prompt_stdin,
 			templates: templates,
 		})
 	}
@@ -101,6 +104,17 @@ impl Action {
 		}
 
 		Ok(cmd)
+	}
+
+	pub fn prompt(&self, cmd: &Exec, value: &serde_json::Value) -> Result<String, Error> {
+		let cmd_str = cmd.to_cmdline_lossy();
+
+		Ok(if self.prompt_stdin {
+			let stdin = self.templates.render("stdin", value)?;
+			format!("# Stdin:\n{}\n- Command:\n{}\n", &stdin, &cmd_str)
+		} else {
+			cmd_str
+		})
 	}
 
 	pub fn run(&self, cmd: Exec) -> Result<(), Error> {
@@ -179,9 +193,9 @@ fn main() {
 				.takes_value(true),
 		)
 		.arg(
-			Arg::with_name("stdin-interactive")
-				.long("stdin-interactive")
-				.help("Include stdin template in interactive prompt (implies -p)")
+			Arg::with_name("prompt-stdin")
+				.long("prompt-stdin")
+				.help("Include stdin template in interactive prompt (implies -p)"),
 		)
 		.arg(Arg::with_name("command").multiple(true));
 
@@ -300,11 +314,14 @@ fn run(args: clap::App, formats: IndexMap<&'static str, Box<dyn Format>>) -> Res
 				},
 			};
 
+			let prompt_stdin = arg_matches.is_present("prompt-stdin");
+
 			match Action::new(
 				command,
 				stdin,
 				commands.map(|c| c.to_string()).collect(),
-				arg_matches.is_present("prompt"),
+				prompt_stdin || arg_matches.is_present("prompt"),
+				prompt_stdin,
 			) {
 				Ok(action) => Some(action),
 				Err(e) => {
@@ -384,8 +401,15 @@ fn process(values: &Vec<serde_json::Value>, action: &Action) -> Result<(), EachE
 			match action.prepare(value) {
 				Ok(cmd) => {
 					let run = if action.prompt {
-						let cmd_str = cmd.to_cmdline_lossy();
-						Confirmation::new().with_text(&cmd_str).interact()?
+						let prompt = match action.prompt(&cmd, &value) {
+							Ok(prompt) => prompt,
+							Err(e) => {
+								return Err(EachError::Data {
+									message: format!("failed to render stdin: {:?}", e),
+								})
+							}
+						};
+						Confirmation::new().with_text(&prompt).interact()?
 					} else {
 						true
 					};
