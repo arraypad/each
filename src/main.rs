@@ -19,9 +19,9 @@ use failure::{Error, Fail};
 use formats::csv::{Csv as CsvFormat, ID as CsvId};
 use formats::json::{Json as JsonFormat, ID as JsonId};
 use handlebars::Handlebars;
+use indexmap::IndexMap;
 use log::info;
 use rayon::prelude::*;
-use std::collections::HashMap;
 use std::io::prelude::*;
 use std::path::Path;
 use subprocess::Exec;
@@ -114,7 +114,7 @@ impl Action {
 fn main() {
 	env_logger::init();
 
-	let mut formats: HashMap<&'static str, Box<dyn Format>> = HashMap::new();
+	let mut formats: IndexMap<&'static str, Box<dyn Format>> = IndexMap::new();
 	formats.insert(JsonId, Box::new(JsonFormat {}));
 	formats.insert(CsvId, Box::new(CsvFormat {}));
 
@@ -178,6 +178,11 @@ fn main() {
 				.help("File containing template string to pass to the stdin of each process")
 				.takes_value(true),
 		)
+		.arg(
+			Arg::with_name("stdin-interactive")
+				.long("stdin-interactive")
+				.help("Include stdin template in interactive prompt (implies -p)")
+		)
 		.arg(Arg::with_name("command").multiple(true));
 
 	std::process::exit(match run(args, formats) {
@@ -196,7 +201,7 @@ fn main() {
 fn guess_format<'a>(
 	ext: &Option<String>,
 	reader: &mut CachedReader,
-	formats: &'a HashMap<&'static str, Box<dyn Format>>,
+	formats: &'a IndexMap<&'static str, Box<dyn Format>>,
 ) -> Option<&'a Box<dyn Format>> {
 	if let Some(ref ext) = ext {
 		for (_, format) in formats {
@@ -224,7 +229,7 @@ fn guess_format<'a>(
 	None
 }
 
-fn run(args: clap::App, formats: HashMap<&'static str, Box<dyn Format>>) -> Result<(), EachError> {
+fn run(args: clap::App, formats: IndexMap<&'static str, Box<dyn Format>>) -> Result<(), EachError> {
 	let arg_matches = args.get_matches();
 	info!("arguments: {:?}", arg_matches);
 
