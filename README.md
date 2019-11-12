@@ -83,7 +83,7 @@ each -i videos.json -P 16 -- youtube-dl {{url}}
 
 #### Prompt for confirmation of each command
 
-Also like xargs, the `-p` / `--interactive` flag will show the resulting command line and prompt you to confirm running each one. This gives you an opportunity to inspect the command before starting a potentially expensive / dangerous operation. Note that this doesn't show the interpolated value passed to stdin if you used the `--stdin` or `--stdin-file` arguments since it's often large. To include that in the prompt use `--stdin-interactive`.
+Also like xargs, the `-p` / `--interactive` flag will show the resulting command line and prompt you to confirm running each one. This gives you an opportunity to inspect the command before starting a potentially expensive / dangerous operation. Note that this doesn't show the interpolated value passed to stdin if you used the `--stdin` or `--stdin-file` arguments since it's often large. To include that in the prompt use `--prompt-stdin`.
 
 ```sh
 each -p rm {{tmppath}} < datasets.csv
@@ -102,7 +102,7 @@ cargo install each
 
 ## Security considerations
 
-Each is only as secure as data you feed it, so likely not very secure at all. Be particularly wary of feeding it files which are writable by other users or files which you have fetched from an untrusted source.
+Each is only as secure as data you feed it, so likely not very secure at all. Be particularly wary of feeding it files which are writable by other users or which you have fetched from an untrusted source.
 
 ## License
 

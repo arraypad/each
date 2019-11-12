@@ -1,5 +1,11 @@
 [package]
 name = "each"
+description = "A better way of working with structured data on the command line"
+homepage = "https://github.com/arraypad/each"
+repository = "https://github.com/arraypad/each"
+readme = "README.md"
+keywords = ["data", "command", "shell", "xargs"]
+categories = ["command-line-utilities"]
 version = "0.1.0"
 authors = ["Arpad Ray <arraypad@gmail.com>"]
 edition = "2018"
