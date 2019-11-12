@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 atty = "0.2.13"
-csv = "1.1"
+csv = "1.1.1"
 clap = "2.33.0"
 dialoguer = "0.5.0"
 env_logger = "0.7.1"

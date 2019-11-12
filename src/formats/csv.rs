@@ -1,5 +1,4 @@
 use failure::Error;
-use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::io::Read;
 
@@ -45,19 +44,20 @@ impl Format for Csv {
 		}
 
 		for value in values {
-			if value.is_object() {
-				let row: Result<Vec<String>, _> = value.as_object()
-					.unwrap()
-					.values()
-					.map(|v| match v.as_str() {
-						Some(s) => Ok(s.to_owned()),
-						None => serde_json::to_string(v),
-					})
-					.collect();
-				writer.serialize(row?)?;
-			} else {
-				let row_str = serde_json::to_string(&value)?;
-				writer.serialize(&row_str)?;
+			match value.as_object() {
+				Some(obj) => {
+					let row: Result<Vec<String>, _> = obj.values()
+						.map(|v| match v.as_str() {
+							Some(s) => Ok(s.to_owned()),
+							None => serde_json::to_string(v),
+						})
+						.collect();
+					writer.serialize(row?)?;
+				},
+				None => {
+					let row_str = serde_json::to_string(&value)?;
+					writer.serialize(&row_str)?;
+				},
 			}
 		}
 
