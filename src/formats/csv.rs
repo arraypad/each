@@ -25,13 +25,11 @@ impl Format for Csv {
 		Ok(false)
 	}
 
-	fn parse(
-		&self,
-		input: &mut dyn Read,
-	) -> Result<Vec<serde_json::Value>, Error> {
+	fn parse(&self, input: &mut dyn Read) -> Result<Vec<serde_json::Value>, Error> {
 		let mut reader = csv::Reader::from_reader(input);
 		let maps: Result<Vec<HashMap<String, String>>, _> = reader.deserialize().collect();
-		let values: Result<Vec<serde_json::Value>, _> = maps?.iter().map(|h| serde_json::to_value(h)).collect();
+		let values: Result<Vec<serde_json::Value>, _> =
+			maps?.iter().map(|h| serde_json::to_value(h)).collect();
 		Ok(values?)
 	}
 
@@ -46,18 +44,19 @@ impl Format for Csv {
 		for value in values {
 			match value.as_object() {
 				Some(obj) => {
-					let row: Result<Vec<String>, _> = obj.values()
+					let row: Result<Vec<String>, _> = obj
+						.values()
 						.map(|v| match v.as_str() {
 							Some(s) => Ok(s.to_owned()),
 							None => serde_json::to_string(v),
 						})
 						.collect();
 					writer.serialize(row?)?;
-				},
+				}
 				None => {
 					let row_str = serde_json::to_string(&value)?;
 					writer.serialize(&row_str)?;
-				},
+				}
 			}
 		}
 

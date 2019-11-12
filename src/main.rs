@@ -16,10 +16,10 @@ mod readers;
 use clap::{AppSettings, Arg};
 use dialoguer::Confirmation;
 use failure::{Error, Fail};
+use formats::csv::{Csv as CsvFormat, ID as CsvId};
+use formats::json::{Json as JsonFormat, ID as JsonId};
 use handlebars::Handlebars;
 use log::info;
-use formats::json::{Json as JsonFormat, ID as JsonId};
-use formats::csv::{Csv as CsvFormat, ID as CsvId};
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::io::prelude::*;
@@ -31,10 +31,7 @@ use readers::{CachedReader, FileReader, CACHE_LEN};
 trait Format {
 	fn get_extensions(&self) -> &'static [&'static str];
 	fn is_valid_header(&self, header: &[u8]) -> Result<bool, Error>;
-	fn parse(
-		&self,
-		input: &mut dyn Read,
-	) -> Result<Vec<serde_json::Value>, Error>;
+	fn parse(&self, input: &mut dyn Read) -> Result<Vec<serde_json::Value>, Error>;
 	fn write(&self, values: Vec<serde_json::Value>) -> Result<(), Error>;
 }
 
@@ -182,9 +179,11 @@ fn run(args: clap::App, formats: HashMap<&'static str, Box<dyn Format>>) -> Resu
 	let max_procs = if let Some(max_procs_str) = arg_matches.value_of("max-procs") {
 		match max_procs_str.parse::<usize>() {
 			Ok(max_procs) => max_procs,
-			Err(e) => return Err(EachError::Usage {
-				message: format!("Invalid max-proces: {} ({})", &max_procs_str, e),
-			}),
+			Err(e) => {
+				return Err(EachError::Usage {
+					message: format!("Invalid max-proces: {} ({})", &max_procs_str, e),
+				})
+			}
 		}
 	} else {
 		1
@@ -305,35 +304,37 @@ fn run(args: clap::App, formats: HashMap<&'static str, Box<dyn Format>>) -> Resu
 	Ok(())
 }
 
-fn process(
-	values: &Vec<serde_json::Value>,
-	action: &Action,
-) -> Result<(), EachError> {
-	let results: Result<Vec<()>, EachError> = values.par_iter().map(|ref value| -> Result<(), EachError> {
-		match action.prepare(value) {
-			Ok(cmd) => {
-				let run = if action.prompt {
-					let cmd_str = cmd.to_cmdline_lossy();
-					Confirmation::new().with_text(&cmd_str).interact()?
-				} else {
-					true
-				};
+fn process(values: &Vec<serde_json::Value>, action: &Action) -> Result<(), EachError> {
+	let results: Result<Vec<()>, EachError> = values
+		.par_iter()
+		.map(|ref value| -> Result<(), EachError> {
+			match action.prepare(value) {
+				Ok(cmd) => {
+					let run = if action.prompt {
+						let cmd_str = cmd.to_cmdline_lossy();
+						Confirmation::new().with_text(&cmd_str).interact()?
+					} else {
+						true
+					};
 
-				if run {
-					if let Err(e) = action.run(cmd) {
-						return Err(EachError::Data {
-							message: format!("failed to run command: {:?}", e),
-						});
+					if run {
+						if let Err(e) = action.run(cmd) {
+							return Err(EachError::Data {
+								message: format!("failed to run command: {:?}", e),
+							});
+						}
 					}
-				}
 
-				Ok(())
-			},
-			Err(e) => return Err(EachError::Data {
-				message: format!("failed to prepare command: {:?}", e),
-			}),
-		}
-	}).collect();
+					Ok(())
+				}
+				Err(e) => {
+					return Err(EachError::Data {
+						message: format!("failed to prepare command: {:?}", e),
+					})
+				}
+			}
+		})
+		.collect();
 
 	match results {
 		Ok(_) => Ok(()),
