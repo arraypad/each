@@ -53,6 +53,7 @@ impl From<std::io::Error> for EachError {
 
 struct Action {
 	command: String,
+	stdin: Option<String>,
 	args: Vec<String>,
 	prompt: bool,
 }
@@ -66,11 +67,17 @@ impl Action {
 			cmd = cmd.arg(reg.render_template(arg, value)?);
 		}
 
+		if let Some(ref stdin) = self.stdin {
+			cmd = cmd.stdin(reg.render_template(&stdin, value)?.as_str());
+		}
+
 		Ok(cmd)
 	}
 
 	pub fn run(&self, cmd: Exec) -> Result<(), Error> {
-		cmd.join()?;
+		let result = cmd.capture()?;
+		std::io::stdout().write_all(&result.stdout)?;
+		std::io::stderr().write_all(&result.stderr)?;
 		Ok(())
 	}
 }
@@ -124,6 +131,22 @@ fn main() {
 				.long("max-procs")
 				.value_name("max-procs")
 				.help("Run up to max-procs processes at a time")
+				.takes_value(true),
+		)
+		.arg(
+			Arg::with_name("stdin")
+				.short("s")
+				.long("stdin")
+				.value_name("TEMPLATE")
+				.help("Template string to pass to the stdin of each process")
+				.takes_value(true),
+		)
+		.arg(
+			Arg::with_name("stdin-file")
+				.short("S")
+				.long("stdin-file")
+				.value_name("PATH")
+				.help("File containing template string to pass to the stdin of each process")
 				.takes_value(true),
 		)
 		.arg(Arg::with_name("command").multiple(true));
@@ -235,7 +258,16 @@ fn run(args: clap::App, formats: HashMap<&'static str, Box<dyn Format>>) -> Resu
 				None => unreachable!(),
 			};
 
+			let stdin = match arg_matches.value_of("stdin") {
+				Some(stdin) => Some(stdin.to_string()),
+				None => match arg_matches.value_of("stdin-file") {
+					Some(stdin_file) => Some(std::fs::read_to_string(stdin_file)?),
+					None => None,
+				},
+			};
+
 			Some(Action {
+				stdin: stdin,
 				command: command,
 				args: commands.map(|c| c.to_string()).collect(),
 				prompt: arg_matches.is_present("prompt"),
