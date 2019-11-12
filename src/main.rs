@@ -53,22 +53,51 @@ impl From<std::io::Error> for EachError {
 
 struct Action {
 	command: String,
-	stdin: Option<String>,
 	args: Vec<String>,
+	stdin: bool,
 	prompt: bool,
+	templates: Handlebars,
 }
 
 impl Action {
-	pub fn prepare(&self, value: &serde_json::Value) -> Result<Exec, Error> {
-		let reg = Handlebars::new();
+	pub fn new(
+		command: String,
+		stdin: Option<String>,
+		args: Vec<String>,
+		prompt: bool,
+	) -> Result<Action, Error> {
+		let mut templates = Handlebars::new();
+		let args: Result<Vec<String>, Error> = args
+			.iter()
+			.enumerate()
+			.map(|(i, arg)| -> Result<String, Error> {
+				let name = i.to_string();
+				templates.register_template_string(&name, &arg)?;
+				Ok(name)
+			})
+			.collect();
 
-		let mut cmd = Exec::cmd(&self.command);
-		for arg in &self.args {
-			cmd = cmd.arg(reg.render_template(arg, value)?);
+		if let Some(ref stdin) = stdin {
+			templates.register_template_string("stdin", stdin)?;
 		}
 
-		if let Some(ref stdin) = self.stdin {
-			cmd = cmd.stdin(reg.render_template(&stdin, value)?.as_str());
+		Ok(Action {
+			command: command,
+			args: args?,
+			stdin: stdin.is_some(),
+			prompt: prompt,
+			templates: templates,
+		})
+	}
+
+	pub fn prepare(&self, value: &serde_json::Value) -> Result<Exec, Error> {
+		let mut cmd = Exec::cmd(&self.command);
+		for arg in &self.args {
+			cmd = cmd.arg(self.templates.render(arg, value)?);
+		}
+
+		if self.stdin {
+			cmd = cmd.stdin(self.templates.render("stdin", value)?.as_str());
 		}
 
 		Ok(cmd)
@@ -204,7 +233,7 @@ fn run(args: clap::App, formats: HashMap<&'static str, Box<dyn Format>>) -> Resu
 			Ok(max_procs) => max_procs,
 			Err(e) => {
 				return Err(EachError::Usage {
-					message: format!("Invalid max-proces: {} ({})", &max_procs_str, e),
+					message: format!("Invalid max-procs: {} ({})", &max_procs_str, e),
 				})
 			}
 		}
@@ -266,12 +295,19 @@ fn run(args: clap::App, formats: HashMap<&'static str, Box<dyn Format>>) -> Resu
 				},
 			};
 
-			Some(Action {
-				stdin: stdin,
-				command: command,
-				args: commands.map(|c| c.to_string()).collect(),
-				prompt: arg_matches.is_present("prompt"),
-			})
+			match Action::new(
+				command,
+				stdin,
+				commands.map(|c| c.to_string()).collect(),
+				arg_matches.is_present("prompt"),
+			) {
+				Ok(action) => Some(action),
+				Err(e) => {
+					return Err(EachError::Usage {
+						message: format!("Invalid template: {:?}", e),
+					})
+				}
+			}
 		}
 		None => None,
 	};
