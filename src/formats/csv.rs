@@ -4,8 +4,8 @@ use failure::Error;
 use std::collections::HashMap;
 use std::io::Read;
 
+use crate::errors::EachError;
 use crate::formats::Format;
-use crate::EachError;
 
 pub const ID: &'static str = "csv";
 

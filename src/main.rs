@@ -10,112 +10,22 @@ extern crate rayon;
 extern crate serde_json;
 extern crate subprocess;
 
+mod action;
+mod errors;
 mod formats;
 mod readers;
 
 use clap::{AppSettings, Arg};
 use dialoguer::Confirmation;
-use failure::{Error, Fail};
-use handlebars::Handlebars;
 use indexmap::IndexMap;
 use log::info;
 use rayon::prelude::*;
-use std::io::prelude::*;
 use std::path::Path;
-use subprocess::Exec;
 
+use action::Action;
+use errors::EachError;
 use formats::{Format, DEFAULT_FORMAT};
 use readers::{CachedReader, FileReader};
-
-#[derive(Debug, Fail)]
-enum EachError {
-	#[fail(display = "Incorrect usage: {:?}", message)]
-	Usage { message: String },
-	#[fail(display = "Data error: {:?}", message)]
-	Data { message: String },
-	#[fail(display = "IO error: {:?}", inner)]
-	Io { inner: std::io::Error },
-}
-
-impl From<std::io::Error> for EachError {
-	fn from(error: std::io::Error) -> Self {
-		EachError::Io { inner: error }
-	}
-}
-
-struct Action {
-	command: String,
-	args: Vec<String>,
-	stdin: bool,
-	prompt: bool,
-	prompt_stdin: bool,
-	templates: Handlebars,
-}
-
-impl Action {
-	pub fn new(
-		command: String,
-		stdin: Option<String>,
-		args: Vec<String>,
-		prompt: bool,
-		prompt_stdin: bool,
-	) -> Result<Action, Error> {
-		let mut templates = Handlebars::new();
-		let args: Result<Vec<String>, Error> = args
-			.iter()
-			.enumerate()
-			.map(|(i, arg)| -> Result<String, Error> {
-				let name = i.to_string();
-				templates.register_template_string(&name, &arg)?;
-				Ok(name)
-			})
-			.collect();
-
-		if let Some(ref stdin) = stdin {
-			templates.register_template_string("stdin", stdin)?;
-		}
-
-		Ok(Action {
-			command: command,
-			args: args?,
-			stdin: stdin.is_some(),
-			prompt: prompt,
-			prompt_stdin: prompt_stdin,
-			templates: templates,
-		})
-	}
-
-	pub fn prepare(&self, value: &serde_json::Value) -> Result<Exec, Error> {
-		let mut cmd = Exec::cmd(&self.command);
-		for arg in &self.args {
-			cmd = cmd.arg(self.templates.render(arg, value)?);
-		}
-
-		if self.stdin {
-			cmd = cmd.stdin(self.templates.render("stdin", value)?.as_str());
-		}
-
-		Ok(cmd)
-	}
-
-	pub fn prompt(&self, cmd: &Exec, value: &serde_json::Value) -> Result<String, Error> {
-		let cmd_str = cmd.to_cmdline_lossy();
-
-		Ok(if self.prompt_stdin {
-			let stdin = self.templates.render("stdin", value)?;
-			format!("# Stdin:\n{}\n- Command:\n{}\n", &stdin, &cmd_str)
-		} else {
-			cmd_str
-		})
-	}
-
-	pub fn run(&self, cmd: Exec) -> Result<(), Error> {
-		let result = cmd.capture()?;
-		std::io::stdout().write_all(&result.stdout)?;
-		std::io::stderr().write_all(&result.stderr)?;
-		Ok(())
-	}
-}
 
 fn main() {
 	env_logger::init();
