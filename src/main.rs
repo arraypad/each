@@ -16,8 +16,6 @@ mod readers;
 use clap::{AppSettings, Arg};
 use dialoguer::Confirmation;
 use failure::{Error, Fail};
-use formats::csv::{Csv as CsvFormat, ID as CsvId};
-use formats::json::{Json as JsonFormat, ID as JsonId};
 use handlebars::Handlebars;
 use indexmap::IndexMap;
 use log::info;
@@ -26,16 +24,8 @@ use std::io::prelude::*;
 use std::path::Path;
 use subprocess::Exec;
 
-use readers::{CachedReader, FileReader, CACHE_LEN};
-
-trait Format {
-	fn add_arguments<'a, 'b>(&self, args: clap::App<'a, 'b>) -> clap::App<'a, 'b>;
-	fn set_arguments(&mut self, matches: &clap::ArgMatches) -> Result<(), Error>;
-	fn get_extensions(&self) -> &'static [&'static str];
-	fn is_valid_header(&self, header: &[u8]) -> Result<bool, Error>;
-	fn parse(&self, input: &mut dyn Read) -> Result<Vec<serde_json::Value>, Error>;
-	fn write(&self, values: Vec<serde_json::Value>) -> Result<(), Error>;
-}
+use formats::{Format, DEFAULT_FORMAT};
+use readers::{CachedReader, FileReader};
 
 #[derive(Debug, Fail)]
 enum EachError {
@@ -130,9 +120,7 @@ impl Action {
 fn main() {
 	env_logger::init();
 
-	let mut formats: IndexMap<&'static str, Box<dyn Format>> = IndexMap::new();
-	formats.insert(JsonId, Box::new(JsonFormat {}));
-	formats.insert(CsvId, Box::new(CsvFormat::default()));
+	let formats = formats::load_formats();
 
 	let mut args = clap::App::new("each")
 		.version("0.1")
@@ -217,37 +205,6 @@ fn main() {
 			}
 		}
 	})
-}
-
-fn guess_format<'a>(
-	ext: &Option<String>,
-	reader: &mut CachedReader,
-	formats: &'a IndexMap<&'static str, Box<dyn Format>>,
-) -> Option<&'a Box<dyn Format>> {
-	if let Some(ref ext) = ext {
-		for (_, format) in formats {
-			for pe in format.get_extensions() {
-				if ext == pe {
-					return Some(format);
-				}
-			}
-		}
-	}
-
-	let mut header = [0; CACHE_LEN];
-	if let Ok(_) = reader.read(&mut header) {
-		reader.rewind();
-
-		for (_, format) in formats {
-			if let Ok(is_header) = format.is_valid_header(&header) {
-				if is_header {
-					return Some(format);
-				}
-			}
-		}
-	}
-
-	None
 }
 
 fn run(
@@ -364,7 +321,7 @@ fn run(
 					})
 				}
 			},
-			None => match guess_format(ext, reader, &formats) {
+			None => match formats::guess_format(ext, reader, &formats) {
 				Some(format) => format,
 				None => {
 					return Err(EachError::Data {
@@ -399,7 +356,7 @@ fn run(
 					})
 				}
 			},
-			None => formats.get(JsonId).unwrap(),
+			None => formats.get(DEFAULT_FORMAT).unwrap(),
 		};
 
 		if let Err(e) = format.write(output_values) {

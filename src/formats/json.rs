@@ -1,7 +1,7 @@
 use failure::Error;
 use std::io::Read;
 
-use crate::Format;
+use crate::formats::Format;
 
 pub const ID: &'static str = "json";
 
