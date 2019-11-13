@@ -10,6 +10,14 @@ pub struct Json {}
 const JSON_EXTS: [&'static str; 1] = ["json"];
 
 impl Format for Json {
+	fn add_arguments<'a, 'b>(&self, args: clap::App<'a, 'b>) -> clap::App<'a, 'b> {
+		args
+	}
+
+	fn set_arguments(&mut self, _matches: &clap::ArgMatches) -> Result<(), Error> {
+		Ok(())
+	}
+
 	fn get_extensions(&self) -> &'static [&'static str] {
 		&JSON_EXTS
 	}

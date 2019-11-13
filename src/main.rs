@@ -29,6 +29,8 @@ use subprocess::Exec;
 use readers::{CachedReader, FileReader, CACHE_LEN};
 
 trait Format {
+	fn add_arguments<'a, 'b>(&self, args: clap::App<'a, 'b>) -> clap::App<'a, 'b>;
+	fn set_arguments(&mut self, matches: &clap::ArgMatches) -> Result<(), Error>;
 	fn get_extensions(&self) -> &'static [&'static str];
 	fn is_valid_header(&self, header: &[u8]) -> Result<bool, Error>;
 	fn parse(&self, input: &mut dyn Read) -> Result<Vec<serde_json::Value>, Error>;
@@ -130,9 +132,9 @@ fn main() {
 
 	let mut formats: IndexMap<&'static str, Box<dyn Format>> = IndexMap::new();
 	formats.insert(JsonId, Box::new(JsonFormat {}));
-	formats.insert(CsvId, Box::new(CsvFormat {}));
+	formats.insert(CsvId, Box::new(CsvFormat::default()));
 
-	let args = clap::App::new("each")
+	let mut args = clap::App::new("each")
 		.version("0.1")
 		.author("Arpad Ray <arraypad@gmail.com>")
 		.about("Build and execute command lines from structured input")
@@ -196,8 +198,13 @@ fn main() {
 			Arg::with_name("prompt-stdin")
 				.long("prompt-stdin")
 				.help("Include stdin template in interactive prompt (implies -p)"),
-		)
-		.arg(Arg::with_name("command").multiple(true));
+		);
+
+	for (_, format) in &formats {
+		args = format.add_arguments(args);
+	}
+
+	args = args.arg(Arg::with_name("command").multiple(true));
 
 	std::process::exit(match run(args, formats) {
 		Ok(_) => exitcode::OK,
@@ -243,9 +250,20 @@ fn guess_format<'a>(
 	None
 }
 
-fn run(args: clap::App, formats: IndexMap<&'static str, Box<dyn Format>>) -> Result<(), EachError> {
+fn run(
+	args: clap::App,
+	mut formats: IndexMap<&'static str, Box<dyn Format>>,
+) -> Result<(), EachError> {
 	let arg_matches = args.get_matches();
 	info!("arguments: {:?}", arg_matches);
+
+	for (format_id, ref mut format) in &mut formats {
+		if let Err(e) = format.set_arguments(&arg_matches) {
+			return Err(EachError::Usage {
+				message: format!("Invalid argument for format {}: {:?}", format_id, e),
+			});
+		}
+	}
 
 	let max_procs = if let Some(max_procs_str) = arg_matches.value_of("max-procs") {
 		match max_procs_str.parse::<usize>() {
