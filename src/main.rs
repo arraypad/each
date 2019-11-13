@@ -260,7 +260,7 @@ fn run(
 	for (format_id, ref mut format) in &mut formats {
 		if let Err(e) = format.set_arguments(&arg_matches) {
 			return Err(EachError::Usage {
-				message: format!("Invalid argument for format {}: {:?}", format_id, e),
+				message: format!("Invalid argument for format {}: {}", format_id, e),
 			});
 		}
 	}

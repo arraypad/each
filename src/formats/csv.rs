@@ -98,7 +98,6 @@ impl Format for Csv {
 			Some(ref escape) => Some(str_to_u8(escape)?),
 			None => None,
 		};
-		log::info!("CSV after args: {:?}", self);
 
 		Ok(())
 	}
