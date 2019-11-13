@@ -102,7 +102,25 @@ cargo install each
 
 ## Security considerations
 
-Each is only as secure as data you feed it, so likely not very secure at all. Be particularly wary of feeding it files which are writable by other users or which you have fetched from an untrusted source.
+_Each_ executes commands on your behalf using potentially untrusted data, so please use it with the utmost care.
+
+Be particularly wary of feeding it files which are writable by other users or which you have fetched from an untrusted source. It's possible a data file may have changed between the time you've inspected it and when you invoke _each_ with it, or an attacker to have crafted the file to make it appear valid.
+
+While it doesn't apply template substitutions to the first command argument (the executable path) it's quite possible to get unexpected behaviour from subsequent arguments.
+
+For example if your executable is a script interpreter then it may be perfectly valid to supply multiple scripts which might lead to untrusted code execution. The following invocation passes two data-controlled parameters into a Perl script in what might appear at first glance to be a safe manner: 
+
+```sh
+each -i people.json -- perl -e 'print reverse @ARGV' '{{name}}' '{{email}}'
+```
+
+However the following evil user gets to run arbitrary Perl code (in this case calling _uptime_):
+```json
+{
+	"name": "-e",
+	"email": "; system uptime"
+}
+```
 
 ## License
 
