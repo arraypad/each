@@ -113,4 +113,14 @@ mod integration {
 Homer Simpson <homer@example.com>"#)
 			.unwrap();
 	}
+
+	#[test]
+	fn json_to_csv() {
+		Assert::main_binary()
+			.with_args(&["-i", PEOPLE_JSON_PATH, "-F", "csv"])
+			.succeeds()
+			.and()
+			.stdout().is(PEOPLE_CSV.as_str())
+			.unwrap();
+	}
 }
