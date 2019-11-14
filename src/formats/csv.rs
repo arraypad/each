@@ -128,28 +128,35 @@ impl Format for Csv {
 	fn write(&self, values: Vec<serde_json::Value>) -> Result<(), Error> {
 		let mut writer = csv::Writer::from_writer(std::io::stdout());
 
-		if let Some(obj) = values[0].as_object() {
-			let header: Vec<&String> = obj.keys().collect();
-			writer.serialize(&header)?;
-		}
-
-		for value in values {
-			match value.as_object() {
-				Some(obj) => {
-					let row: Result<Vec<String>, _> = obj
-						.values()
-						.map(|v| match v.as_str() {
-							Some(s) => Ok(s.to_owned()),
-							None => serde_json::to_string(v),
-						})
-						.collect();
-					writer.serialize(row?)?;
+		let header: Vec<&String> = match values[0].as_object() {
+			Some(obj) => obj.keys().collect(),
+			None => {
+				return Err(EachError::Data {
+					message: format!("Data to write must be an object, received: {:?}", values[0]),
 				}
-				None => {
-					let row_str = serde_json::to_string(&value)?;
-					writer.serialize(&row_str)?;
-				}
+				.into())
 			}
+		};
+
+		writer.serialize(&header)?;
+
+		for value in &values {
+			let obj = match value.as_object() {
+				Some(obj) => obj,
+				None => unreachable!("The shape of each row must be the same as the header"),
+			};
+
+			let row: Result<Vec<String>, _> = header
+				.iter()
+				.map(|k| -> Result<String, _> {
+					let v = &obj[k.as_str()];
+					match v.as_str() {
+						Some(s) => Ok(s.to_owned()),
+						None => serde_json::to_string(v),
+					}
+				})
+				.collect();
+			writer.serialize(row?)?;
 		}
 
 		writer.flush()?;
