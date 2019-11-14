@@ -31,6 +31,7 @@ fn main() {
 	env_logger::init();
 
 	let formats = formats::load_formats();
+	let format_ids: Vec<&str> = formats.iter().map(|(&k, _)| k).collect();
 
 	let mut args = clap::App::new("each")
 		.version("0.1")
@@ -52,7 +53,8 @@ fn main() {
 				.long("format")
 				.value_name("FORMAT")
 				.help("Input file format")
-				.takes_value(true),
+				.takes_value(true)
+				.possible_values(format_ids.as_slice()),
 		)
 		.arg(
 			Arg::with_name("output-format")
