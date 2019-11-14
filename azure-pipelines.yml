@@ -1,9 +1,6 @@
 trigger:
-  branches:
-    include:
-    - "refs/tags/v*"
-    exclude:
-    - "*"
+- master
+- develop
 
 resources:
   repositories:
