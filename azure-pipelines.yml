@@ -24,7 +24,7 @@ stages:
 - stage: release
   displayName: "Release builds"
   jobs:
-    - template: ci/scenarios/builds.yml@templates
+    - template: ci/scenarios/builds.yml@rust_pipelines
       parameters:
         rust: stable
         release: true
