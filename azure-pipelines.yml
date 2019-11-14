@@ -26,16 +26,16 @@ stages:
   jobs:
     - template: ci/scenarios/builds.yml@templates
       parameters:
-      rust: stable
-      release: true
-      builds:
-        - target: x86_64-unknown-linux-musl
-          name: x86_64_unknown_linux_musl
-          pre-steps:
-            - bash: sudo apt-get install -q -yy musl-tools
-        - target: x86_64-pc-windows-msvc
-          name: x86_64_pc_windows_msvc
-          pre-steps: []
-        - target: x86_64-apple-darwin
-          name: x86_64_apple_darwin
-          pre-steps: []
+        rust: stable
+        release: true
+        builds:
+          - target: x86_64-unknown-linux-musl
+            name: x86_64_unknown_linux_musl
+            pre-steps:
+              - bash: sudo apt-get install -q -yy musl-tools
+          - target: x86_64-pc-windows-msvc
+            name: x86_64_pc_windows_msvc
+            pre-steps: []
+          - target: x86_64-apple-darwin
+            name: x86_64_apple_darwin
+            pre-steps: []
