@@ -63,7 +63,8 @@ fn main() {
 				.long("output-format")
 				.value_name("FORMAT")
 				.help("Output file format")
-				.takes_value(true),
+				.takes_value(true)
+				.possible_values(format_ids.as_slice()),
 		)
 		.arg(
 			Arg::with_name("prompt")
