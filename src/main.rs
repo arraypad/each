@@ -14,6 +14,7 @@ mod action;
 mod errors;
 mod formats;
 mod readers;
+mod tests;
 
 use clap::{AppSettings, Arg};
 use dialoguer::Confirmation;

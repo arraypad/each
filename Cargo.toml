@@ -29,3 +29,7 @@ subprocess = "0.1.18"
 [dependencies.serde_json]
 version = "1.0.41"
 features = ["preserve_order"]
+
+[dev-dependencies]
+assert_cli = "0.6.3"
+lazy_static = "1.4.0"
