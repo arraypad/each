@@ -141,7 +141,7 @@ Homer Simpson <homer@example.com>"#,
 			.succeeds()
 			.and()
 			.stdout()
-			.is(PEOPLE_CSV.as_str())
+			.satisfies(|s| native_newlines(s) == PEOPLE_CSV.as_str(), "unexpected output")
 			.unwrap();
 	}
 }
