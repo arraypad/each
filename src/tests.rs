@@ -10,10 +10,27 @@ mod integration {
 	const PEOPLE_TSV_PATH: &'static str = "test-resources/people.tsv";
 	const PEOPLE_JSON_PATH: &'static str = "test-resources/people.json";
 
+	fn native_newlines<S: Into<String>>(s: S) -> String {
+		if cfg!(target_os = "windows") {
+			return s.into().replace("\n", "\r\n");
+		}
+
+		s.into()
+	}
+
+	fn read_resource(path: &'static str, fix_newlines: bool) -> String {
+		let s = std::fs::read_to_string(path).unwrap();
+		if fix_newlines {
+			native_newlines(s)
+		} else {
+			s
+		}
+	}
+
 	lazy_static::lazy_static! {
-		static ref PEOPLE_CSV: String = std::fs::read_to_string(PEOPLE_CSV_PATH).unwrap();
-		static ref PEOPLE_TSV: String = std::fs::read_to_string(PEOPLE_TSV_PATH).unwrap();
-		static ref PEOPLE_JSON: String = std::fs::read_to_string(PEOPLE_JSON_PATH).unwrap();
+		static ref PEOPLE_CSV: String = read_resource(PEOPLE_CSV_PATH, true);
+		static ref PEOPLE_TSV: String = read_resource(PEOPLE_TSV_PATH, true);
+		static ref PEOPLE_JSON: String = read_resource(PEOPLE_JSON_PATH, false);
 	}
 
 	fn expect_people_json(got_str: &str) -> bool {
@@ -109,8 +126,11 @@ mod integration {
 			.succeeds()
 			.and()
 			.stdout()
-			.is(r#"Bart Simpson <bart@example.com>
-Homer Simpson <homer@example.com>"#)
+			.is(native_newlines(
+				r#"Bart Simpson <bart@example.com>
+Homer Simpson <homer@example.com>"#,
+			)
+			.as_str())
 			.unwrap();
 	}
 
@@ -120,7 +140,8 @@ Homer Simpson <homer@example.com>"#)
 			.with_args(&["-i", PEOPLE_JSON_PATH, "-F", "csv"])
 			.succeeds()
 			.and()
-			.stdout().is(PEOPLE_CSV.as_str())
+			.stdout()
+			.is(PEOPLE_CSV.as_str())
 			.unwrap();
 	}
 }
