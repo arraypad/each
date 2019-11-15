@@ -137,7 +137,7 @@ Homer Simpson <homer@example.com>
 			.and()
 			.stdout()
 			.satisfies(
-				|s| norm_newlines(s) == PEOPLE_CSV.as_str(),
+				|s| norm_newlines(s) == norm_newlines(PEOPLE_CSV.as_str()),
 				"unexpected output",
 			)
 			.unwrap();
