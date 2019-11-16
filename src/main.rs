@@ -1,15 +1,3 @@
-extern crate atty;
-extern crate clap;
-extern crate dialoguer;
-extern crate exitcode;
-extern crate failure;
-extern crate handlebars;
-extern crate indexmap;
-extern crate log;
-extern crate rayon;
-extern crate serde_json;
-extern crate subprocess;
-
 mod action;
 mod errors;
 mod formats;

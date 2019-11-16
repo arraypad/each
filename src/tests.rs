@@ -1,8 +1,5 @@
 #[cfg(test)]
 mod integration {
-	extern crate assert_cli;
-	extern crate lazy_static;
-
 	use assert_cli::Assert;
 	use std::collections::HashMap;
 
