@@ -112,7 +112,12 @@ impl Format for Csv {
 	}
 
 	fn is_valid_header(&self, header: &[u8]) -> Result<bool, Error> {
-		let mut reader = self.reader_builder().from_reader(header);
+		let mut builder = self.reader_builder();
+
+		// Let rust-csv parse the headers in this case, we don't need to preserve order just to check it's valid.
+		builder.has_headers(true);
+
+		let mut reader = builder.from_reader(header);
 		let has_row: Option<Result<HashMap<String, String>, _>> = reader.deserialize().next();
 		if let Some(row) = has_row {
 			return Ok(row.is_ok());
