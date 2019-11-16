@@ -20,6 +20,10 @@ impl Csv {
 	fn reader_builder(&self) -> ReaderBuilder {
 		let mut builder = csv::ReaderBuilder::new();
 
+		// We need to read the header ourselves to preserve order, see:
+		// https://github.com/BurntSushi/rust-csv/issues/98
+		builder.has_headers(false);
+
 		if let Some(delimiter) = self.delimiter {
 			builder.delimiter(delimiter);
 		}
@@ -119,10 +123,40 @@ impl Format for Csv {
 
 	fn parse(&self, input: &mut dyn Read) -> Result<Vec<serde_json::Value>, Error> {
 		let mut reader = self.reader_builder().from_reader(input);
-		let maps: Result<Vec<HashMap<String, String>>, _> = reader.deserialize().collect();
-		let values: Result<Vec<serde_json::Value>, _> =
-			maps?.iter().map(|h| serde_json::to_value(h)).collect();
-		Ok(values?)
+		let mut it = reader.records();
+
+		let header: Vec<String> = match it.next() {
+			Some(row) => row?.iter().map(|s| s.into()).collect(),
+			None => {
+				return Err(EachError::Data {
+					message: "Header row is empty".to_string(),
+				}
+				.into());
+			}
+		};
+
+		let mut values: Vec<serde_json::Value> = Vec::new();
+		for (i, result) in it.enumerate() {
+			let cols = result?;
+			if cols.len() != header.len() {
+				return Err(EachError::Data {
+					message: format!(
+						"Row {} has different number of records than the header: {:?}",
+						i, &cols
+					),
+				}
+				.into());
+			}
+
+			let mut map = serde_json::map::Map::new();
+			for (j, col) in cols.iter().enumerate() {
+				map.insert(header[j].clone(), col.to_string().into());
+			}
+
+			values.push(map.into());
+		}
+
+		Ok(values)
 	}
 
 	fn write(&self, values: Vec<serde_json::Value>) -> Result<(), Error> {

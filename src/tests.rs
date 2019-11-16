@@ -142,4 +142,18 @@ Homer Simpson <homer@example.com>
 			)
 			.unwrap();
 	}
+
+	#[test]
+	fn csv_to_csv() {
+		Assert::main_binary()
+			.with_args(&["-i", PEOPLE_CSV_PATH, "-F", "csv"])
+			.succeeds()
+			.and()
+			.stdout()
+			.satisfies(
+				|s| norm_newlines(s) == norm_newlines(PEOPLE_CSV.as_str()),
+				"unexpected output",
+			)
+			.unwrap();
+	}
 }
