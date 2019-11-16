@@ -58,7 +58,9 @@ Homer Simpson <homer@example.com>
 Since _each_ reads from stdin by default it plays nicely with other CLI tools including _jq_.
 
 ```sh
-aws ec2 describe-instances | jq '.Instances' | each ping -c 1 {{PublicIpAddress}}
+aws ec2 describe-instances | \
+	jq '.Instances' | \
+	each ping -c 1 {{PublicIpAddress}}
 ```
 
 #### Supply stdin to each command
@@ -111,7 +113,8 @@ While it doesn't apply template substitutions to the first command argument (the
 For example if your executable is a script interpreter then it may be perfectly valid to supply multiple scripts which might lead to untrusted code execution. The following invocation passes two data-controlled parameters into a Perl script in what might appear at first glance to be a safe manner: 
 
 ```sh
-each -i people.json -- perl -e 'print reverse @ARGV' '{{name}}' '{{email}}'
+each -i people.json -- \
+	perl -e 'print reverse @ARGV' '{{name}}' '{{email}}'
 ```
 
 However the following evil user gets to run arbitrary Perl code (in this case calling _uptime_):
