@@ -126,7 +126,7 @@ impl Format for Csv {
 		Ok(false)
 	}
 
-	fn parse(&self, input: &mut dyn Read) -> Result<Vec<serde_json::Value>, Error> {
+	fn parse(&self, input: &mut dyn Read) -> Result<serde_json::Value, Error> {
 		let mut reader = self.reader_builder().from_reader(input);
 		let mut it = reader.records();
 
@@ -161,7 +161,7 @@ impl Format for Csv {
 			values.push(map.into());
 		}
 
-		Ok(values)
+		Ok(values.into())
 	}
 
 	fn write(&self, values: Vec<serde_json::Value>) -> Result<(), Error> {

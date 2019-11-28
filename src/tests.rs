@@ -153,4 +153,24 @@ Homer Simpson <homer@example.com>
 			)
 			.unwrap();
 	}
+
+	#[test]
+	fn jmes_query() {
+		Assert::main_binary()
+			.with_args(&[
+				"-i",
+				PEOPLE_JSON_PATH,
+				"-q",
+				r#"[?starts_with(name, `"Bart"`)]"#,
+				"--",
+				"echo",
+				"-n",
+				"{{email}}",
+			])
+			.succeeds()
+			.and()
+			.stdout()
+			.is("bart@example.com")
+			.unwrap();
+	}
 }

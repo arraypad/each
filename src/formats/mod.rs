@@ -16,7 +16,7 @@ pub trait Format {
 	fn set_arguments(&mut self, matches: &clap::ArgMatches) -> Result<(), Error>;
 	fn get_extensions(&self) -> &'static [&'static str];
 	fn is_valid_header(&self, header: &[u8]) -> Result<bool, Error>;
-	fn parse(&self, input: &mut dyn Read) -> Result<Vec<serde_json::Value>, Error>;
+	fn parse(&self, input: &mut dyn Read) -> Result<serde_json::Value, Error>;
 	fn write(&self, values: Vec<serde_json::Value>) -> Result<(), Error>;
 }
 

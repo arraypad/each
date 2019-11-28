@@ -26,7 +26,7 @@ impl Format for Json {
 		Ok(header[0] as char == '[')
 	}
 
-	fn parse(&self, input: &mut dyn Read) -> Result<Vec<serde_json::Value>, Error> {
+	fn parse(&self, input: &mut dyn Read) -> Result<serde_json::Value, Error> {
 		// read to string first - see https://github.com/serde-rs/json/issues/160
 		let mut buffer = String::new();
 		input.read_to_string(&mut buffer)?;

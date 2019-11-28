@@ -53,14 +53,14 @@ Homer Simpson <homer@example.com>
 
 ```
 
-#### Ping a list of EC2 instances returned from the AWS CLI.
+#### Query input data
 
-Since _each_ reads from stdin by default it plays nicely with other CLI tools including _jq_.
+You can use arbitrary [JMESPath](http://jmespath.org/) queries to extract rows from your input data:
 
 ```sh
-aws ec2 describe-instances | \
-	jq '.Instances' | \
-	each ping -c 1 {{PublicIpAddress}}
+curl https://cat-fact.herokuapp.com/facts |
+	each -f json -q 'all[?upvotes > `4`]' -- \
+	echo {{user.name.first}}: {{text}}
 ```
 
 #### Supply stdin to each command

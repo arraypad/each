@@ -46,6 +46,14 @@ fn main() {
 				.possible_values(format_ids.as_slice()),
 		)
 		.arg(
+			Arg::with_name("query")
+				.short("q")
+				.long("query")
+				.value_name("QUERY")
+				.help("JMES query to apply to each input file")
+				.takes_value(true),
+		)
+		.arg(
 			Arg::with_name("output-format")
 				.short("F")
 				.long("output-format")
@@ -233,7 +241,7 @@ fn run(
 			},
 		};
 
-		let values = match format.parse(reader) {
+		let mut values = match format.parse(reader) {
 			Ok(values) => values,
 			Err(e) => {
 				return Err(EachError::Data {
@@ -242,9 +250,27 @@ fn run(
 			}
 		};
 
+		if let Some(query_str) = arg_matches.value_of("query") {
+			let query = jmespath::compile(&query_str).map_err(|e| EachError::Usage {
+				message: format!("Invalid JMES query: {}", e),
+			})?;
+
+			let query_result = query.search(values).map_err(|e| EachError::Data {
+				message: format!("Error evaluating JMES query: {}", e),
+			})?;
+
+			values = serde_json::to_value(query_result).map_err(|e| EachError::Data {
+				message: format!("Error converting query result to JSON value: {}", e),
+			})?;
+		}
+
+		let vec_values = values.as_array().ok_or_else(|| EachError::Data {
+			message: "Input values are not an array".to_string(),
+		})?;
+
 		match action {
-			Some(ref action) => process(&values, &action)?,
-			None => output_values.extend_from_slice(&values),
+			Some(ref action) => process(&vec_values, &action)?,
+			None => output_values.extend_from_slice(&vec_values),
 		}
 	}
 
