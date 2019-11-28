@@ -1,6 +1,6 @@
 # Each: build command lines from CSV, JSON etc.
 
-Do you find yourself juggling awkward and brittle incantations of _grep_, _cut_ and _xargs_ when working with structured data? _Each_ aims to provide a better way of working with structured data on the command line.
+Do you find yourself juggling awkward and brittle incantations of _grep_, _cut_ and _xargs_? _Each_ aims to provide a better way of working with lists of structured data on the command line.
 
 * [Examples](#Examples)
 * [Installation](#Installation)
@@ -10,7 +10,7 @@ Do you find yourself juggling awkward and brittle incantations of _grep_, _cut_ 
 ## Examples
 
 #### Convert CSV into JSON
-When no command argument is supplied, _each_ pretty-prints the parsed list of items as JSON (or into another supported format using the `-F` argument).
+When no command argument is supplied, _each_ pretty-prints the parsed items as JSON (or into another supported format using the `-F` argument).
 
 Contents of `people.csv`:
 ```
@@ -59,7 +59,7 @@ You can use arbitrary [JMESPath](http://jmespath.org/) queries to extract rows f
 
 ```sh
 curl https://cat-fact.herokuapp.com/facts |
-	each -f json -q 'all[?upvotes > `4`]' -- \
+	each -q 'all[?upvotes > `4`]' -- \
 	echo {{user.name.first}}: {{text}}
 ```
 
