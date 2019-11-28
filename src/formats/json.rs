@@ -23,7 +23,7 @@ impl Format for Json {
 	}
 
 	fn is_valid_header(&self, header: &[u8]) -> Result<bool, Error> {
-		Ok(header[0] as char == '[')
+		Ok(header[0] as char == '[' || header[0] as char == '{')
 	}
 
 	fn parse(&self, input: &mut dyn Read) -> Result<serde_json::Value, Error> {
