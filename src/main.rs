@@ -125,22 +125,19 @@ fn run(
 	info!("arguments: {:?}", arg_matches);
 
 	for (format_id, ref mut format) in &mut formats {
-		if let Err(e) = format.set_arguments(&arg_matches) {
-			return Err(EachError::Usage {
+		format
+			.set_arguments(&arg_matches)
+			.map_err(|e| EachError::Usage {
 				message: format!("Invalid argument for format {}: {}", format_id, e),
-			});
-		}
+			})?;
 	}
 
 	let max_procs = if let Some(max_procs_str) = arg_matches.value_of("max-procs") {
-		match max_procs_str.parse::<usize>() {
-			Ok(max_procs) => max_procs,
-			Err(e) => {
-				return Err(EachError::Usage {
-					message: format!("Invalid max-procs: {} ({})", &max_procs_str, e),
-				})
-			}
-		}
+		max_procs_str
+			.parse::<usize>()
+			.map_err(|e| EachError::Usage {
+				message: format!("Invalid max-procs: {} ({})", &max_procs_str, e),
+			})?
 	} else {
 		1
 	};
@@ -161,14 +158,9 @@ fn run(
 				None
 			};
 
-			let reader = match FileReader::new(&input_path) {
-				Ok(reader) => Box::new(reader),
-				Err(e) => {
-					return Err(EachError::Data {
-						message: format!("Couldn't open file {}: {}", &input_path, e),
-					})
-				}
-			};
+			let reader = Box::new(FileReader::new(&input_path).map_err(|e| EachError::Data {
+				message: format!("Couldn't open file {}: {}", &input_path, e),
+			})?);
 
 			let cached = CachedReader::new(reader);
 
@@ -223,32 +215,19 @@ fn run(
 
 	for (ref ext, ref mut reader) in readers.iter_mut() {
 		let format = match arg_matches.value_of("format") {
-			Some(format_id) => match formats.get(format_id) {
-				Some(format) => format,
-				None => {
-					return Err(EachError::Usage {
-						message: format!("Unknown format: {}", &format_id),
-					})
-				}
-			},
-			None => match formats::guess_format(ext, reader, &formats) {
-				Some(format) => format,
-				None => {
-					return Err(EachError::Data {
-						message: format!("Unable to guess format for input"),
-					})
-				}
-			},
-		};
-
-		let mut values = match format.parse(reader) {
-			Ok(values) => values,
-			Err(e) => {
-				return Err(EachError::Data {
-					message: format!("failed to parse input: {}", e),
-				})
+			Some(format_id) => formats.get(format_id).ok_or_else(|| EachError::Usage {
+				message: format!("Unknown format: {}", &format_id),
+			})?,
+			None => {
+				formats::guess_format(ext, reader, &formats).ok_or_else(|| EachError::Data {
+					message: format!("Unable to guess format for input"),
+				})?
 			}
 		};
+
+		let mut values = format.parse(reader).map_err(|e| EachError::Data {
+			message: format!("failed to parse input: {}", e),
+		})?;
 
 		if let Some(query_str) = arg_matches.value_of("query") {
 			let query = jmespath::compile(&query_str).map_err(|e| EachError::Usage {
@@ -276,14 +255,9 @@ fn run(
 
 	if action.is_none() {
 		let format = match arg_matches.value_of("output-format") {
-			Some(format_id) => match formats.get(format_id) {
-				Some(format) => format,
-				None => {
-					return Err(EachError::Usage {
-						message: format!("Unknown output format: {}", &format_id),
-					})
-				}
-			},
+			Some(format_id) => formats.get(format_id).ok_or_else(|| EachError::Usage {
+				message: format!("Unknown output format: {}", &format_id),
+			})?,
 			None => formats.get(DEFAULT_FORMAT).unwrap(),
 		};
 
@@ -301,43 +275,29 @@ fn process(values: &Vec<serde_json::Value>, action: &Action) -> Result<(), EachE
 	let results: Result<Vec<()>, EachError> = values
 		.par_iter()
 		.map(|ref value| -> Result<(), EachError> {
-			match action.prepare(value) {
-				Ok(cmd) => {
-					let run = if action.prompt {
-						let prompt = match action.prompt(&cmd, &value) {
-							Ok(prompt) => prompt,
-							Err(e) => {
-								return Err(EachError::Data {
-									message: format!("failed to render stdin: {:?}", e),
-								})
-							}
-						};
-						Confirmation::new().with_text(&prompt).interact()?
-					} else {
-						true
-					};
+			let cmd = action.prepare(value).map_err(|e| EachError::Data {
+				message: format!("failed to prepare command: {:?}", e),
+			})?;
 
-					if run {
-						if let Err(e) = action.run(cmd) {
-							return Err(EachError::Data {
-								message: format!("failed to run command: {:?}", e),
-							});
-						}
-					}
+			let run = if action.prompt {
+				let prompt = action.prompt(&cmd, &value).map_err(|e| EachError::Data {
+					message: format!("failed to render stdin: {:?}", e),
+				})?;
 
-					Ok(())
-				}
-				Err(e) => {
-					return Err(EachError::Data {
-						message: format!("failed to prepare command: {:?}", e),
-					})
-				}
+				Confirmation::new().with_text(&prompt).interact()?
+			} else {
+				true
+			};
+
+			if run {
+				action.run(cmd).map_err(|e| EachError::Data {
+					message: format!("failed to run command: {:?}", e),
+				})?;
 			}
+
+			Ok(())
 		})
 		.collect();
 
-	match results {
-		Ok(_) => Ok(()),
-		Err(e) => Err(e),
-	}
+	results.map(|_| ())
 }

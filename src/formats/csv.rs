@@ -130,15 +130,11 @@ impl Format for Csv {
 		let mut reader = self.reader_builder().from_reader(input);
 		let mut it = reader.records();
 
-		let header: Vec<String> = match it.next() {
-			Some(row) => row?.iter().map(|s| s.into()).collect(),
-			None => {
-				return Err(EachError::Data {
-					message: "Header row is empty".to_string(),
-				}
-				.into());
-			}
-		};
+		let header_row = it.next().ok_or_else(|| EachError::Data {
+			message: "Header row is empty".to_string(),
+		})?;
+
+		let header: Vec<String> = header_row?.iter().map(|s| s.into()).collect();
 
 		let mut values: Vec<serde_json::Value> = Vec::new();
 		for (i, result) in it.enumerate() {
@@ -167,16 +163,11 @@ impl Format for Csv {
 	fn write(&self, values: Vec<serde_json::Value>) -> Result<(), Error> {
 		let mut writer = csv::Writer::from_writer(std::io::stdout());
 
-		let header: Vec<&String> = match values[0].as_object() {
-			Some(obj) => obj.keys().collect(),
-			None => {
-				return Err(EachError::Data {
-					message: format!("Data to write must be an object, received: {:?}", values[0]),
-				}
-				.into())
-			}
-		};
+		let obj = values[0].as_object().ok_or_else(|| EachError::Data {
+			message: format!("Data to write must be an object, received: {:?}", values[0]),
+		})?;
 
+		let header: Vec<&String> = obj.keys().collect();
 		writer.serialize(&header)?;
 
 		for value in &values {
