@@ -164,13 +164,15 @@ Homer Simpson <homer@example.com>
 				r#"[?starts_with(name, `"Bart"`)]"#,
 				"--",
 				"echo",
-				"-n",
 				"{{email}}",
 			])
 			.succeeds()
 			.and()
 			.stdout()
-			.is("bart@example.com")
+			.satisfies(
+				|s| norm_newlines(s) == "bart@example.com\n",
+				"unexpected output",
+			)
 			.unwrap();
 	}
 }
