@@ -3,23 +3,23 @@ use handlebars::Handlebars;
 use std::io::prelude::*;
 use subprocess::Exec;
 
-pub struct Action {
+pub struct Action<'a> {
 	command: String,
 	args: Vec<String>,
 	stdin: bool,
 	pub prompt: bool,
 	pub prompt_stdin: bool,
-	templates: Handlebars,
+	templates: Handlebars<'a>,
 }
 
-impl Action {
+impl<'a> Action<'a> {
 	pub fn new(
 		command: String,
 		stdin: Option<String>,
 		args: Vec<String>,
 		prompt: bool,
 		prompt_stdin: bool,
-	) -> Result<Action, Error> {
+	) -> Result<Action<'a>, Error> {
 		let mut templates = Handlebars::new();
 		let args: Result<Vec<String>, Error> = args
 			.iter()
@@ -36,12 +36,12 @@ impl Action {
 		}
 
 		Ok(Action {
-			command: command,
+			command,
 			args: args?,
 			stdin: stdin.is_some(),
-			prompt: prompt,
-			prompt_stdin: prompt_stdin,
-			templates: templates,
+			prompt,
+			prompt_stdin,
+			templates,
 		})
 	}
 

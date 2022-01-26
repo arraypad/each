@@ -7,7 +7,7 @@ use std::io::Read;
 use crate::errors::EachError;
 use crate::formats::Format;
 
-pub const ID: &'static str = "csv";
+pub const ID: &str = "csv";
 
 #[derive(Default)]
 pub struct Csv {
@@ -61,12 +61,12 @@ fn str_to_u8(s: &str) -> Result<u8, Error> {
 	}
 }
 
-const CSV_EXTS: [&'static str; 1] = ["csv"];
+const CSV_EXTS: [&str; 1] = ["csv"];
 
 impl Format for Csv {
-	fn add_arguments<'a, 'b>(&self, args: clap::App<'a, 'b>) -> clap::App<'a, 'b> {
+	fn add_arguments<'a>(&self, args: clap::App<'a>) -> clap::App<'a> {
 		args.arg(
-			Arg::with_name("csv-delimiter")
+			Arg::new("csv-delimiter")
 				.long("csv-delimiter")
 				.value_name("CHAR")
 				.help("The field delimiter to use when parsing CSV")
@@ -74,7 +74,7 @@ impl Format for Csv {
 				.takes_value(true),
 		)
 		.arg(
-			Arg::with_name("csv-quote")
+			Arg::new("csv-quote")
 				.long("csv-quote")
 				.value_name("CHAR")
 				.help("The quote character to use when parsing CSV")
@@ -82,7 +82,7 @@ impl Format for Csv {
 				.takes_value(true),
 		)
 		.arg(
-			Arg::with_name("csv-escape")
+			Arg::new("csv-escape")
 				.long("csv-escape")
 				.value_name("CHAR")
 				.help("The escape character to use when parsing CSV [defaults to double quoting]")
@@ -92,15 +92,15 @@ impl Format for Csv {
 
 	fn set_arguments(&mut self, matches: &clap::ArgMatches) -> Result<(), Error> {
 		self.delimiter = match matches.value_of("csv-delimiter") {
-			Some(ref delimiter) => Some(str_to_u8(delimiter)?),
+			Some(delimiter) => Some(str_to_u8(delimiter)?),
 			None => None,
 		};
 		self.quote = match matches.value_of("csv-quote") {
-			Some(ref quote) => Some(str_to_u8(quote)?),
+			Some(quote) => Some(str_to_u8(quote)?),
 			None => None,
 		};
 		self.escape = match matches.value_of("csv-escape") {
-			Some(ref escape) => Some(str_to_u8(escape)?),
+			Some(escape) => Some(str_to_u8(escape)?),
 			None => None,
 		};
 

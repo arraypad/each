@@ -5,7 +5,7 @@ mod readers;
 mod tests;
 
 use clap::{AppSettings, Arg};
-use dialoguer::Confirmation;
+use dialoguer::Confirm;
 use indexmap::IndexMap;
 use log::info;
 use rayon::prelude::*;
@@ -28,17 +28,17 @@ fn main() {
 		.about("Build and execute command lines from structured input")
 		.setting(AppSettings::TrailingVarArg)
 		.arg(
-			Arg::with_name("input")
-				.short("i")
+			Arg::new("input")
+				.short('i')
 				.long("input")
 				.value_name("FILE")
-				.multiple(true)
+				.multiple_occurrences(true)
 				.help("Read input from FILE instead of stdin")
 				.takes_value(true),
 		)
 		.arg(
-			Arg::with_name("format")
-				.short("f")
+			Arg::new("format")
+				.short('f')
 				.long("format")
 				.value_name("FORMAT")
 				.help("Input file format")
@@ -46,16 +46,16 @@ fn main() {
 				.possible_values(format_ids.as_slice()),
 		)
 		.arg(
-			Arg::with_name("query")
-				.short("q")
+			Arg::new("query")
+				.short('q')
 				.long("query")
 				.value_name("QUERY")
 				.help("JMES query to apply to each input file")
 				.takes_value(true),
 		)
 		.arg(
-			Arg::with_name("output-format")
-				.short("F")
+			Arg::new("output-format")
+				.short('F')
 				.long("output-format")
 				.value_name("FORMAT")
 				.help("Output file format")
@@ -63,37 +63,37 @@ fn main() {
 				.possible_values(format_ids.as_slice()),
 		)
 		.arg(
-			Arg::with_name("prompt")
-				.short("p")
+			Arg::new("prompt")
+				.short('p')
 				.long("interactive")
 				.help("Prompt for each value"),
 		)
 		.arg(
-			Arg::with_name("max-procs")
-				.short("P")
+			Arg::new("max-procs")
+				.short('P')
 				.long("max-procs")
 				.value_name("max-procs")
 				.help("Run up to max-procs processes at a time")
 				.takes_value(true),
 		)
 		.arg(
-			Arg::with_name("stdin")
-				.short("s")
+			Arg::new("stdin")
+				.short('s')
 				.long("stdin")
 				.value_name("TEMPLATE")
 				.help("Template string to pass to the stdin of each process")
 				.takes_value(true),
 		)
 		.arg(
-			Arg::with_name("stdin-file")
-				.short("S")
+			Arg::new("stdin-file")
+				.short('S')
 				.long("stdin-file")
 				.value_name("PATH")
 				.help("File containing template string to pass to the stdin of each process")
 				.takes_value(true),
 		)
 		.arg(
-			Arg::with_name("prompt-stdin")
+			Arg::new("prompt-stdin")
 				.long("prompt-stdin")
 				.help("Include stdin template in interactive prompt (implies -p)"),
 		);
@@ -102,7 +102,7 @@ fn main() {
 		args = format.add_arguments(args);
 	}
 
-	args = args.arg(Arg::with_name("command").multiple(true));
+	args = args.arg(Arg::new("command").multiple_occurrences(true));
 
 	std::process::exit(match run(args, formats) {
 		Ok(_) => exitcode::OK,
@@ -152,12 +152,7 @@ fn run(
 	if let Some(input_paths) = arg_matches.values_of("input") {
 		for input_path in input_paths {
 			let path = Path::new(&input_path);
-			let ext = if let Some(ext) = path.extension() {
-				Some(ext.to_string_lossy().to_string())
-			} else {
-				None
-			};
-
+			let ext = path.extension().map(|ext| ext.to_string_lossy().to_string());
 			let reader = Box::new(FileReader::new(&input_path).map_err(|e| EachError::Data {
 				message: format!("Couldn't open file {}: {}", &input_path, e),
 			})?);
@@ -220,7 +215,7 @@ fn run(
 			})?,
 			None => {
 				formats::guess_format(ext, reader, &formats).ok_or_else(|| EachError::Data {
-					message: format!("Unable to guess format for input"),
+					message: "Unable to guess format for input".to_string(),
 				})?
 			}
 		};
@@ -230,7 +225,7 @@ fn run(
 		})?;
 
 		if let Some(query_str) = arg_matches.value_of("query") {
-			let query = jmespath::compile(&query_str).map_err(|e| EachError::Usage {
+			let query = jmespath::compile(query_str).map_err(|e| EachError::Usage {
 				message: format!("Invalid JMES query: {}", e),
 			})?;
 
@@ -248,8 +243,8 @@ fn run(
 		})?;
 
 		match action {
-			Some(ref action) => process(&vec_values, &action)?,
-			None => output_values.extend_from_slice(&vec_values),
+			Some(ref action) => process(vec_values, action)?,
+			None => output_values.extend_from_slice(vec_values),
 		}
 	}
 
@@ -271,20 +266,20 @@ fn run(
 	Ok(())
 }
 
-fn process(values: &Vec<serde_json::Value>, action: &Action) -> Result<(), EachError> {
+fn process(values: &[serde_json::Value], action: &Action) -> Result<(), EachError> {
 	let results: Result<Vec<()>, EachError> = values
 		.par_iter()
-		.map(|ref value| -> Result<(), EachError> {
+		.map(|value| -> Result<(), EachError> {
 			let cmd = action.prepare(value).map_err(|e| EachError::Data {
 				message: format!("failed to prepare command: {:?}", e),
 			})?;
 
 			let run = if action.prompt {
-				let prompt = action.prompt(&cmd, &value).map_err(|e| EachError::Data {
+				let prompt = action.prompt(&cmd, value).map_err(|e| EachError::Data {
 					message: format!("failed to render stdin: {:?}", e),
 				})?;
 
-				Confirmation::new().with_text(&prompt).interact()?
+				Confirm::new().with_prompt(&prompt).interact()?
 			} else {
 				true
 			};

@@ -34,7 +34,7 @@ impl CachedReader {
 		CachedReader {
 			buffer: Vec::new(),
 			index: 0,
-			reader: reader,
+			reader,
 		}
 	}
 

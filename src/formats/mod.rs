@@ -9,10 +9,10 @@ use crate::formats::csv::{Csv as CsvFormat, ID as CsvId};
 use crate::formats::json::{Json as JsonFormat, ID as JsonId};
 use crate::readers::{CachedReader, CACHE_LEN};
 
-pub const DEFAULT_FORMAT: &'static str = JsonId;
+pub const DEFAULT_FORMAT: &str = JsonId;
 
 pub trait Format {
-	fn add_arguments<'a, 'b>(&self, args: clap::App<'a, 'b>) -> clap::App<'a, 'b>;
+	fn add_arguments<'a>(&self, args: clap::App<'a>) -> clap::App<'a>;
 	fn set_arguments(&mut self, matches: &clap::ArgMatches) -> Result<(), Error>;
 	fn get_extensions(&self) -> &'static [&'static str];
 	fn is_valid_header(&self, header: &[u8]) -> Result<bool, Error>;
@@ -44,7 +44,7 @@ pub fn guess_format<'a>(
 	}
 
 	let mut header = [0; CACHE_LEN];
-	if let Ok(_) = reader.read(&mut header) {
+	if reader.read(&mut header).is_ok() {
 		reader.rewind();
 
 		for (_, format) in formats {

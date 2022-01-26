@@ -102,7 +102,7 @@ mod integration {
 			.fails()
 			.and()
 			.stderr()
-			.contains("error: 'xxx' isn't a valid value for '--format <FORMAT>'")
+			.contains("error: \"xxx\" isn't a valid value for '--format <FORMAT>'")
 			.unwrap();
 	}
 

@@ -3,14 +3,14 @@ use std::io::Read;
 
 use crate::formats::Format;
 
-pub const ID: &'static str = "json";
+pub const ID: &str = "json";
 
 pub struct Json {}
 
-const JSON_EXTS: [&'static str; 1] = ["json"];
+const JSON_EXTS: [&str; 1] = ["json"];
 
 impl Format for Json {
-	fn add_arguments<'a, 'b>(&self, args: clap::App<'a, 'b>) -> clap::App<'a, 'b> {
+	fn add_arguments<'a>(&self, args: clap::App<'a>) -> clap::App<'a> {
 		args
 	}
 
