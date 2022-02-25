@@ -127,8 +127,6 @@ However the following evil user gets to run arbitrary Perl code (in this case ca
 
 ![Recent Activity](https://images.repography.com/20739240/arraypad/each/recent-activity/84add8ad89a52f192efb4a1a7f403b9f.svg)
 
-![Structure](https://images.repography.com/20739240/arraypad/each/structure/84add8ad89a52f192efb4a1a7f403b9f.svg)
-
 ![Top Contributors](https://images.repography.com/20739240/arraypad/each/top-contributors/84add8ad89a52f192efb4a1a7f403b9f.svg)
 
 ## License
