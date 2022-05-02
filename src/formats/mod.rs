@@ -28,6 +28,7 @@ pub fn load_formats() -> IndexMap<&'static str, Box<dyn Format>> {
 	formats
 }
 
+#[allow(clippy::borrowed_box)]
 pub fn guess_format<'a>(
 	ext: &Option<String>,
 	reader: &mut CachedReader,
