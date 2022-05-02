@@ -23,8 +23,8 @@ fn main() {
 	let format_ids: Vec<&str> = formats.iter().map(|(&k, _)| k).collect();
 
 	let mut args = Command::new("each")
-		.version("0.1")
-		.author("Arpad Ray <arraypad@gmail.com>")
+		.version("0.2")
+		.author("Arpad Ray <hello@arpad.pizza>")
 		.about("Build and execute command lines from structured input")
 		.trailing_var_arg(true)
 		.arg(

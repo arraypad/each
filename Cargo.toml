@@ -7,8 +7,8 @@ readme = "README.md"
 license = "MIT"
 keywords = ["data", "command", "shell", "xargs"]
 categories = ["command-line-utilities"]
-version = "0.1.3"
-authors = ["Arpad Ray <arraypad@gmail.com>"]
+version = "0.2"
+authors = ["Arpad Ray <hello@arpad.pizza>"]
 edition = "2021"
 
 [dependencies]
