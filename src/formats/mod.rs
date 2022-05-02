@@ -12,7 +12,7 @@ use crate::readers::{CachedReader, CACHE_LEN};
 pub const DEFAULT_FORMAT: &str = JsonId;
 
 pub trait Format {
-	fn add_arguments<'a>(&self, args: clap::App<'a>) -> clap::App<'a>;
+	fn add_arguments<'a>(&self, args: clap::Command<'a>) -> clap::Command<'a>;
 	fn set_arguments(&mut self, matches: &clap::ArgMatches) -> Result<(), Error>;
 	fn get_extensions(&self) -> &'static [&'static str];
 	fn is_valid_header(&self, header: &[u8]) -> Result<bool, Error>;

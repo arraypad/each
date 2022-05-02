@@ -4,7 +4,7 @@ mod formats;
 mod readers;
 mod tests;
 
-use clap::{AppSettings, Arg};
+use clap::{Arg, Command};
 use dialoguer::Confirm;
 use indexmap::IndexMap;
 use log::info;
@@ -22,11 +22,11 @@ fn main() {
 	let formats = formats::load_formats();
 	let format_ids: Vec<&str> = formats.iter().map(|(&k, _)| k).collect();
 
-	let mut args = clap::App::new("each")
+	let mut args = Command::new("each")
 		.version("0.1")
 		.author("Arpad Ray <arraypad@gmail.com>")
 		.about("Build and execute command lines from structured input")
-		.setting(AppSettings::TrailingVarArg)
+		.trailing_var_arg(true)
 		.arg(
 			Arg::new("input")
 				.short('i')
@@ -118,7 +118,7 @@ fn main() {
 }
 
 fn run(
-	args: clap::App,
+	args: Command,
 	mut formats: IndexMap<&'static str, Box<dyn Format>>,
 ) -> Result<(), EachError> {
 	let arg_matches = args.get_matches();

@@ -64,7 +64,7 @@ fn str_to_u8(s: &str) -> Result<u8, Error> {
 const CSV_EXTS: [&str; 1] = ["csv"];
 
 impl Format for Csv {
-	fn add_arguments<'a>(&self, args: clap::App<'a>) -> clap::App<'a> {
+	fn add_arguments<'a>(&self, args: clap::Command<'a>) -> clap::Command<'a> {
 		args.arg(
 			Arg::new("csv-delimiter")
 				.long("csv-delimiter")

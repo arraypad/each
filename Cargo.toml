@@ -12,25 +12,25 @@ authors = ["Arpad Ray <arraypad@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-atty = "0.2.14"
-csv = "1.1.6"
-clap = "3.0.12"
-dialoguer = "0.9.0"
-env_logger = "0.7.1"
-exitcode = "1.1.2"
-failure = "0.1.6"
-handlebars = "4.2.1"
-indexmap = "1.8.0"
-jmespath = { git = "https://github.com/jmespath/jmespath.rs" }
-log = "0.4.0"
-rayon = "1.5.1"
-serde = "1.0.136"
-subprocess = "0.2.8"
+atty = "0.2"
+csv = "1.1"
+clap = "3.1"
+dialoguer = "0.10"
+env_logger = "0.9"
+exitcode = "1.1"
+failure = "0.1"
+handlebars = "4.2"
+indexmap = "1.8"
+jmespath = "0.3"
+log = "0.4"
+rayon = "1.5"
+serde = "1.0"
+subprocess = "0.2"
 
 [dependencies.serde_json]
-version = "1.0.78"
+version = "1.0"
 features = ["preserve_order"]
 
 [dev-dependencies]
-assert_cli = "0.6.3"
-lazy_static = "1.4.0"
+assert_cli = "0.6"
+lazy_static = "1.4"
