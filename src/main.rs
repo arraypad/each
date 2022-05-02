@@ -152,7 +152,9 @@ fn run(
 	if let Some(input_paths) = arg_matches.values_of("input") {
 		for input_path in input_paths {
 			let path = Path::new(&input_path);
-			let ext = path.extension().map(|ext| ext.to_string_lossy().to_string());
+			let ext = path
+				.extension()
+				.map(|ext| ext.to_string_lossy().to_string());
 			let reader = Box::new(FileReader::new(&input_path).map_err(|e| EachError::Data {
 				message: format!("Couldn't open file {}: {}", &input_path, e),
 			})?);
