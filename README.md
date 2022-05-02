@@ -1,9 +1,7 @@
 # Each: build command lines from CSV, JSON etc.
-
-<p align="center">
-	![Crates.io](https://img.shields.io/crates/v/each)
-	[![Continuous integration](https://github.com/arraypad/each/workflows/Continuous%20integration/badge.svg)](https://github.com/arraypad/each/actions/workflows/ci.yml)
-</p>
+	
+![Crates.io](https://img.shields.io/crates/v/each)
+[![Continuous integration](https://github.com/arraypad/each/workflows/Continuous%20integration/badge.svg)](https://github.com/arraypad/each/actions/workflows/ci.yml)
 
 Do you find yourself juggling awkward and brittle incantations of _grep_, _cut_ and _xargs_? _Each_ aims to provide a better way of working with lists of structured data on the command line.
 
