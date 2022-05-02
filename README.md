@@ -127,10 +127,9 @@ However the following evil user gets to run arbitrary Perl code (in this case ca
 	"email": "; system uptime"
 }
 ```
-
-![Recent Activity](https://images.repography.com/20739240/arraypad/each/recent-activity/84add8ad89a52f192efb4a1a7f403b9f.svg)
-
-![Top Contributors](https://images.repography.com/20739240/arraypad/each/top-contributors/84add8ad89a52f192efb4a1a7f403b9f.svg)
+## [![Repography logo](https://images.repography.com/logo.svg)](https://repography.com) / Recent activity [![Time period](https://images.repography.com/20739240/arraypad/each/recent-activity/84add8ad89a52f192efb4a1a7f403b9f_badge.svg)](https://repography.com)
+[![Timeline graph](https://images.repography.com/20739240/arraypad/each/recent-activity/84add8ad89a52f192efb4a1a7f403b9f_timeline.svg)](https://github.com/arraypad/each/commits)
+[![Issue status graph](https://images.repography.com/20739240/arraypad/each/recent-activity/84add8ad89a52f192efb4a1a7f403b9f_issues.svg)](https://github.com/arraypad/each/issues)
 
 ## License
 
